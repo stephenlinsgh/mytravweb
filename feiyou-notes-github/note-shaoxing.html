@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>绍兴年味 · 旅行笔记</title>
+<meta name="description" content="2025.01.29 – 02.01，绍兴。春节里的绍兴，老街挂满红灯笼，空气里飘着腊梅香。在东湖看石壁映水，在沈园读陆游与唐琬的旧事，再坐乌篷船穿过一座又一座石桥。">
+<link rel="stylesheet" href="./assets/style.css">
+<style>
+  .note-head{padding:46px 20px 8px}
+  .note-head .inner{max-width:var(--maxw);margin:0 auto}
+  .note-head h1{font-size:34px;color:var(--blue-deep);font-weight:800;letter-spacing:1px;margin-bottom:10px}
+  .note-head .meta{color:var(--muted);font-size:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .note-head .meta .pill{background:var(--sky);color:var(--blue);padding:3px 12px;border-radius:999px;font-size:13px}
+  .lead{font-size:17px;line-height:1.9}
+  .gallery{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px;
+  }
+  .gallery figure{margin:0}
+  .gallery img{
+    width:100%;height:220px;object-fit:cover;border-radius:12px;
+    border:1px solid var(--line);transition:.2s;
+  }
+  .gallery img:hover{box-shadow:0 8px 24px rgba(21,69,122,.14);transform:translateY(-2px)}
+  .gallery figcaption{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+  @media(max-width:860px){
+    .gallery{grid-template-columns:repeat(2,1fr)}
+    .note-head h1{font-size:27px}
+    .gallery img{height:180px}
+  }
+  @media(max-width:520px){
+    .gallery{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">个人笔记 <span class="plane">📝</span></div>
+    <nav class="nav-links">
+      <a href="./index.html">旅行</a>
+      <a href="./sports.html">运动</a>
+      <a href="./notes.html" class="active">笔记</a>
+      <a href="./about.html">关于</a>
+    </nav>
+  </div>
+</header>
+
+<section class="note-head">
+  <div class="inner">
+    <div class="breadcrumb"><a href="./index.html">旅行</a> / 绍兴年味</div>
+    <h1>绍兴年味</h1>
+    <div class="meta">
+      <span class="pill">2025.01.29 – 02.01</span>
+      <span class="pill">绍兴</span>
+      <span class="pill">4 天</span>
+    </div>
+  </div>
+</section>
+
+<main class="wrap" style="padding-top:22px">
+  <article class="prose" style="max-width:none">
+    <p class="lead">春节里的绍兴，老街挂满红灯笼，空气里飘着腊梅香。在东湖看石壁映水，在沈园读陆游与唐琬的旧事，再坐乌篷船穿过一座又一座石桥。</p>
+
+    <h2>照片</h2>
+    <p class="section-sub" style="margin-bottom:8px">沿途风景，均为无人出镜的风景照。</p>
+    <div class="gallery">
+      <figure style="grid-column:1/-1">
+        <img src="./assets/travels/shaoxing.jpg" alt="红灯高挂 等照片合集（共10张）" loading="lazy" style="height:auto">
+        <figcaption>照片合集 · 共 10 张（含说明）</figcaption>
+      </figure>
+    </div>
+
+    <p style="margin-top:30px"><a href="./index.html">← 返回旅行</a> · <a href="./notes.html">全部笔记</a></p>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>© 2026 个人笔记 · 由 Cloudflare Pages 强力驱动</div>
+    <div><a href="./about.html">关于本站</a> · stephenlinsgh.eu.cc</div>
+  </div>
+</footer>
+
+</body>
+</html>
