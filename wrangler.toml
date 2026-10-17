@@ -19,7 +19,7 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "personal_notes"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "e0f6fa4c-acff-4a6d-b0fb-2146d38ed2e1"
 
 # ---------------------------------------------------------------------------
 # 图片存储（R2）：封面图、正文插图上传到这里，通过 /img/... 读取
