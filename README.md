@@ -20,7 +20,8 @@ mytravweb/
 
 1. Cloudflare 里用 **Workers → Connect Git** 连这个仓库。
 2. 后台建好 **D1 数据库 `personal_notes`**，把它的 `database_id` 填进 `wrangler.toml`。
-3. 建好 **R2 存储桶 `personal-notes-media`**。
+3. 建好 **R2 存储桶 `personal-notes-media`**（名字必须一字不差）。
+   - 个人站点用 R2 基本免费：前 10GB/月存储免费、出口流量永久免费。
 4. 在 Worker 项目「设置 → 变量和机密」里加 secret：`ADMIN_PASSWORD`（后台密码）。
 5. 推送到 `main`，Cloudflare 自动 `wrangler deploy`。
 

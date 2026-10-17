@@ -175,6 +175,8 @@ const ADMIN_PAGE = `<!doctype html>
   .EasyMDEContainer .CodeMirror{border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;font-size:15px;line-height:1.7}
   .EasyMDEContainer .editor-toolbar button{border-radius:5px}
   .EasyMDEContainer .editor-toolbar i.separator{margin:0 6px}
+  .EasyMDEContainer .editor-toolbar button.mde-video{font-size:0}
+  .EasyMDEContainer .editor-toolbar button.mde-video::after{content:'视频';font-size:13px}
 </style>
 </head>
 <body>
@@ -266,6 +268,28 @@ const CAT = { notes:'笔记', travel:'旅行', sports:'运动', visit:'参观' }
 let filter = ''
 let CACHE_IDS = {}
 
+// ---- 插入视频：贴链接或上传本地视频 ----
+function insertAtCursor(ed, text) {
+  var cm = ed.codemirror
+  cm.replaceSelection(text)
+  cm.focus()
+}
+function insertVideo(ed) {
+  var url = prompt('粘贴视频链接（YouTube / Bilibili / .mp4 网址），留空则上传本地视频')
+  if (url === null) return
+  if (url.trim()) { insertAtCursor(ed, '![video](' + url.trim() + ')'); return }
+  var inp = document.createElement('input')
+  inp.type = 'file'
+  inp.accept = 'video/mp4,video/webm,video/ogg'
+  inp.onchange = function (e) {
+    var f = e.target.files[0]
+    if (!f) return
+    uploadFile(f).then(function (u) { insertAtCursor(ed, '![video](' + u + ')') })
+      .catch(function (err) { alert('上传失败：' + err.message) })
+  }
+  inp.click()
+}
+
 // ---- 正文编辑器（EasyMDE，开源 Markdown 编辑器）----
 let mde = null
 if (typeof EasyMDE !== 'undefined') {
@@ -280,7 +304,7 @@ if (typeof EasyMDE !== 'undefined') {
     imageUploadFunction: function (file, onSuccess, onError) {
       uploadFile(file).then(onSuccess).catch(function (e) { onError(e.message || '上传失败') })
     },
-    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link','image','table','code','quote','|','preview','side-by-side','|','guide']
+    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link','image',{ name:'video', action:insertVideo, className:'mde-video', title:'插入视频（链接或上传）' },'table','code','quote','|','preview','side-by-side','|','guide']
   })
 }
 function getBody() { return mde ? mde.value() : $('content').value }
@@ -675,6 +699,8 @@ app.get('/post/:slug', async (c) => {
   .post .body th{background:var(--sky-soft);font-weight:600}
   .post .body hr{border:none;border-top:1px solid var(--line);margin:36px 0}
   .post .back{display:inline-block;margin-top:46px;color:var(--blue);text-decoration:none}
+  .post .body .vid{position:relative;width:100%;aspect-ratio:16/9;margin:22px 0;background:#000}
+  .post .body .vid iframe,.post .body .vid video{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:var(--radius)}
   @media(max-width:700px){.post h1{font-size:25px}.post .body{font-size:16px}}
 </style>
 </head>
@@ -696,8 +722,15 @@ app.get('/post/:slug', async (c) => {
    /img/*：按 key 从 R2 读图，长期缓存（图片地址一旦生成就不变）。
    ========================================================================== */
 
-const IMG_TYPES = {
-  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif'
+// 图片与视频都走同一个上传接口，存到 R2
+const UPLOAD_TYPES = {
+  'image/jpeg': { ext: 'jpg',  max: 5 * 1024 * 1024,  dir: 'covers' },
+  'image/png':  { ext: 'png',  max: 5 * 1024 * 1024,  dir: 'covers' },
+  'image/webp': { ext: 'webp', max: 5 * 1024 * 1024,  dir: 'covers' },
+  'image/gif':  { ext: 'gif',  max: 5 * 1024 * 1024,  dir: 'covers' },
+  'video/mp4':  { ext: 'mp4',  max: 50 * 1024 * 1024, dir: 'videos' },
+  'video/webm': { ext: 'webm', max: 50 * 1024 * 1024, dir: 'videos' },
+  'video/ogg':  { ext: 'ogg',  max: 50 * 1024 * 1024, dir: 'videos' }
 }
 
 app.post('/api/admin/upload', requireAuth, async (c) => {
@@ -706,10 +739,12 @@ app.post('/api/admin/upload', requireAuth, async (c) => {
   try { form = await c.req.parseBody() } catch { return c.json({ error: '表单解析失败' }, 400) }
   const file = form.file
   if (!(file instanceof File)) return c.json({ error: '没有收到文件' }, 400)
-  const ext = IMG_TYPES[file.type]
-  if (!ext) return c.json({ error: '只支持 jpg / png / webp / gif' }, 400)
-  if (file.size > 5 * 1024 * 1024) return c.json({ error: '图片不能超过 5MB' }, 400)
-  const key = `covers/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const cfg = UPLOAD_TYPES[file.type]
+  if (!cfg) return c.json({ error: '只支持 jpg/png/webp/gif 图片，或 mp4/webm/ogg 视频' }, 400)
+  if (file.size > cfg.max) {
+    return c.json({ error: (cfg.dir === 'videos' ? '视频' : '图片') + '太大（上限 ' + (cfg.max / 1024 / 1024) + 'MB）' }, 400)
+  }
+  const key = cfg.dir + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + cfg.ext
   await c.env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
   return c.json({ ok: true, url: '/img/' + key })
 })
