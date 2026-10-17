@@ -12,6 +12,7 @@
 import { Hono } from 'hono'
 import { getContent } from './content.js'
 import { renderMarkdown } from './markdown.js'
+import importedPosts from './import-data.js'
 
 const app = new Hono()
 
@@ -249,6 +250,11 @@ const ADMIN_PAGE = `<!doctype html>
     <div class="panel">
       <h2>已发布的文章</h2>
       <div class="hint">点「编辑」可以修改已发布的文章，改完再点一次发布即可覆盖。</div>
+      <div class="acts" style="margin:0 0 16px">
+        <button class="btn mini" id="importBtn"
+                style="background:#fff;color:var(--blue);border:1px solid var(--line)">导入原有文章</button>
+        <span class="msg" id="importMsg"></span>
+      </div>
       <div class="tabs" id="catTabs">
         <button class="on" data-cat="">全部</button>
         <button data-cat="notes">笔记</button>
@@ -514,6 +520,26 @@ async function del(id) {
   load()
 }
 
+// 把网站上原有的静态文章一次性导入数据库，之后就能在上面编辑
+$('importBtn').onclick = async function () {
+  if (!confirm('把网站上原有的文章导入后台？已导入过的会自动跳过，不会重复。')) return
+  var btn = $('importBtn')
+  btn.disabled = true
+  $('importMsg').textContent = '导入中…'
+  $('importMsg').className = 'msg'
+  try {
+    var d = await api('/api/admin/import', { method:'POST', body:'{}' })
+    if (d.error) throw new Error(d.error)
+    $('importMsg').textContent = '完成：新增 ' + d.inserted + ' 篇，跳过 ' + d.skipped + ' 篇'
+    $('importMsg').className = 'msg ok'
+    load()
+  } catch (e) {
+    $('importMsg').textContent = '导入失败：' + e.message
+    $('importMsg').className = 'msg err'
+  }
+  btn.disabled = false
+}
+
 // 进页面先试探登录状态。
 // showApp() 只负责显示界面，拉列表是另一件事 —— 这里必须显式 load()，
 // 否则刷新后台会停在「加载中…」。
@@ -645,6 +671,36 @@ app.delete('/api/posts/:id', requireAuth, async (c) => {
   const id = Number(c.req.param('id'))
   await c.env.DB.prepare('DELETE FROM posts WHERE id=?').bind(id).run()
   return c.json({ ok: true })
+})
+
+/**
+ * 一次性导入：把网站上原有的静态文章（note-*.html）写进数据库。
+ * 数据来自 src/import-data.js（由 scripts/build-import.cjs 生成）。
+ * 可重复点：slug 已存在的直接跳过，不会产生重复文章。
+ */
+app.post('/api/admin/import', requireAuth, async (c) => {
+  await ensureSchema(c.env.DB)
+  let inserted = 0
+  let skipped = 0
+  const items = []
+  for (const p of importedPosts) {
+    const dup = await c.env.DB.prepare('SELECT id FROM posts WHERE slug=?').bind(p.slug).first()
+    if (dup) { skipped++; items.push(p.slug + ':skipped'); continue }
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO posts (slug,title,category,summary,content,cover,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,?)`
+      ).bind(
+        p.slug, p.title, p.category, p.summary || '', p.content || '',
+        p.cover || null, p.created_at, Date.now()
+      ).run()
+      inserted++
+      items.push(p.slug + ':inserted')
+    } catch (e) {
+      items.push(p.slug + ':error')
+    }
+  }
+  return c.json({ ok: true, inserted, skipped, total: importedPosts.length, items })
 })
 
 /* ==========================================================================
