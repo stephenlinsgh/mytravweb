@@ -1,0 +1,17 @@
+{
+  "name": "personal-notes-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "dbapply": "wrangler d1 execute personal_notes --file=schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}

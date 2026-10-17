@@ -4,14 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>旅行 · 个人笔记</title>
-<meta http-equiv="refresh" content="0; url=./index.html">
-<link rel="canonical" href="./index.html">
+<meta name="description" content="个人笔记的旅行——走过的路线与途中的故事。">
 <link rel="stylesheet" href="./assets/style.css">
+<style>
+  .trip-card{display:block;overflow:hidden;padding:0}
+  .trip-card .cover{width:100%;height:300px;object-fit:cover;display:block}
+  .trip-card .body{padding:22px 24px 24px}
+  .trip-card h3{font-size:22px;color:var(--blue);margin-bottom:8px}
+  .trip-card .meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+  .trip-card p{color:var(--ink);font-size:15px}
+  @media(max-width:860px){.trip-card .cover{height:210px}}
+  .cms-empty{grid-column:1/-1;color:var(--muted);font-size:15px;padding:20px 0}
+</style>
 </head>
 <body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">个人笔记 <span class="plane">📝</span></div>
+    <nav class="nav-links">
+      <a href="./index.html" class="active">旅行</a>
+      <a href="./sports.html">运动</a>
+      <a href="./notes.html">笔记</a>
+      <a href="./visit.html">参观</a>
+      <a href="./about.html">关于</a>
+    </nav>
+  </div>
+</header>
+
 <main class="wrap">
-  <p class="section-sub">正在前往「旅行」… 若没有自动跳转，<a href="./index.html" style="color:var(--blue);text-decoration:underline">点这里</a>。</p>
+  <h2 class="section-title">旅行</h2>
+  <p class="section-sub">走过的路线、去过的城市、路上的故事，都记在这里。</p>
+
+  <div class="grid" style="margin-top:6px" data-cms-slot>
+    <p class="section-sub" style="margin-top:20px">还没有旅行记录。</p>
+  </div>
 </main>
-<script>location.replace('./index.html');</script>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>© 2026 个人笔记</div>
+    <div><a href="./about.html">关于本站</a> · stephenlinsgh.eu.cc</div>
+  </div>
+</footer>
+
+<script src="./assets/cms-list.js" data-cat="travel"></script>
+
 </body>
 </html>

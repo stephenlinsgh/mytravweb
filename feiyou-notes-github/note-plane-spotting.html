@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>眼力大挑战：认出 A320、B737 和 C919</title>
+<meta name="description" content="用真实 3D 模型玩认飞机游戏：旋转、缩放观察 A320、B737、C919 的机头、发动机与翼尖小翼。">
+<link rel="stylesheet" href="./assets/style.css">
+<style>
+  .note-head{padding:46px 20px 8px}
+  .note-head .inner{max-width:var(--maxw);margin:0 auto}
+  .note-head h1{font-size:34px;color:var(--blue-deep);font-weight:800;letter-spacing:1px;margin-bottom:10px}
+  .note-head .meta{color:var(--muted);font-size:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .note-head .meta .pill{background:var(--sky);color:var(--blue);padding:3px 12px;border-radius:999px;font-size:13px}
+  .lead{font-size:17px;line-height:1.9}
+
+  /* ===== 3D 展示台 ===== */
+  .viewer{
+    position:relative;background:linear-gradient(180deg,#eef4fb 0%,#dde8f4 100%);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:22px 0;
+  }
+  .viewer canvas{display:block;width:100%;height:420px;touch-action:none}
+  .v-loading{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:10px;background:#eef4fb;color:var(--muted);font-size:15px;
+  }
+  .v-loading .bar{width:180px;height:5px;background:#d5e2f0;border-radius:99px;overflow:hidden}
+  .v-loading .bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .3s}
+  .v-loading.hide{display:none}
+  .v-badge{
+    position:absolute;top:12px;left:12px;background:rgba(255,255,255,.92);
+    border:1px solid var(--line);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--muted);
+  }
+  .v-hint{
+    position:absolute;bottom:12px;left:12px;right:12px;text-align:center;
+    font-size:12px;color:var(--muted);pointer-events:none;
+  }
+  .v-tools{position:absolute;top:12px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+  .v-tools button{
+    background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:8px;
+    padding:5px 11px;font-size:13px;color:var(--blue);cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .v-tools button:hover{background:#fff;border-color:var(--blue)}
+  .v-tools button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .tabs button{
+    flex:1;min-width:96px;background:#fff;border:2px solid var(--line);border-radius:12px;
+    padding:12px 8px;font-size:15px;font-weight:700;color:var(--blue);cursor:pointer;
+    font-family:inherit;transition:.15s;line-height:1.4;
+  }
+  .tabs button small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+  .tabs button:hover:not(:disabled){border-color:var(--blue);background:var(--sky-soft)}
+  .tabs button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .tabs button.on small{color:rgba(255,255,255,.85)}
+  .tabs button:disabled{opacity:.5;cursor:default}
+
+  /* ===== 游戏 ===== */
+  .game{
+    margin:26px 0 34px;background:#fafcff;border:1px solid var(--line);
+    border-radius:var(--radius);padding:20px 20px 22px;
+  }
+  .g-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+  .g-round{font-size:14px;color:var(--blue);font-weight:700;letter-spacing:.5px}
+  .g-score{font-size:14px;color:var(--muted)}
+  .g-bar{height:6px;background:var(--sky);border-radius:99px;overflow:hidden;margin-bottom:18px}
+  .g-bar i{display:block;height:100%;width:0;background:var(--blue);border-radius:99px;transition:width .35s}
+  .g-q{font-size:18px;font-weight:700;color:var(--blue-deep);line-height:1.6;margin-bottom:14px}
+  .g-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .g-opts button{
+    background:#fff;border:2px solid var(--line);border-radius:12px;padding:13px 8px;
+    font-size:16px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .g-opts button:hover:not(:disabled){border-color:var(--blue);background:var(--sky-soft)}
+  .g-opts button:disabled{cursor:default;opacity:.55}
+  .g-opts button.right{border-color:var(--accent);background:#e8f7f1;color:#127a58;opacity:1}
+  .g-opts button.wrong{border-color:#d64545;background:#fdeeee;color:#a52a2a;opacity:1}
+  .g-hint{margin:14px 0;font-size:14px;color:var(--muted);min-height:22px}
+  .g-hint button{
+    background:none;border:1px dashed var(--line);color:var(--muted);
+    padding:4px 12px;border-radius:99px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .g-hint button:hover{border-color:var(--blue);color:var(--blue)}
+  .g-hint span{margin-left:8px}
+  .g-fb{margin-top:16px;border-radius:12px;padding:16px 18px;background:var(--sky-soft);border:1px solid var(--line)}
+  .g-fb.ok{background:#e8f7f1;border-color:#bfe6d6}
+  .g-fb.no{background:#fdeeee;border-color:#f3cccc}
+  .g-fb-title{font-size:16px;font-weight:800;margin-bottom:8px}
+  .g-fb-why{font-size:15px;color:var(--ink);line-height:1.8;margin-bottom:14px}
+  .g-next{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+  .g-next:hover{background:var(--blue-deep)}
+  .g-final{text-align:center;padding:10px 0}
+  .g-final .big{font-size:40px;font-weight:800;color:var(--blue);line-height:1.2}
+  .g-final .rank{font-size:17px;color:var(--ink);margin:8px 0 18px}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
+  table{width:100%;border-collapse:collapse;font-size:15px;min-width:640px}
+  th,td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line)}
+  th{background:var(--sky-soft);color:var(--blue);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td .pill{background:var(--sky);color:var(--blue);padding:3px 10px;border-radius:999px;font-size:13px}
+
+  .spec{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 0}
+  .spec span{background:var(--sky-soft);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:13px;color:var(--muted)}
+  .spec b{color:var(--blue)}
+
+  @media(max-width:640px){
+    .g-opts{grid-template-columns:1fr}
+    .viewer canvas{height:300px}
+    .v-tools{max-width:52%}
+    .note-head h1{font-size:26px}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">个人笔记 <span class="plane">📝</span></div>
+    <nav class="nav-links">
+      <a href="./index.html">旅行</a>
+      <a href="./sports.html">运动</a>
+      <a href="./notes.html" class="active">笔记</a>
+      <a href="./visit.html">参观</a>
+      <a href="./about.html">关于</a>
+    </nav>
+  </div>
+</header>
+
+<section class="note-head">
+  <div class="inner">
+    <div class="breadcrumb"><a href="./notes.html">笔记</a> / 眼力大挑战</div>
+    <h1>眼力大挑战：认出 A320、B737 和 C919</h1>
+    <div class="meta">
+      <span class="pill">航空知识</span>
+      <span class="pill">真实 3D 模型</span>
+      <span class="pill">6 关</span>
+    </div>
+  </div>
+</section>
+
+<main class="wrap" style="padding-top:22px">
+  <article class="prose">
+
+    <p class="lead">下面三架都是<b>真实的 3D 模型</b>，可以拖动旋转、滚轮缩放。先随便转转看看，然后进入六关挑战——每一关会把镜头对准某个关键部位，考你那是哪一款。</p>
+
+    <div class="viewer" id="viewer">
+      <div class="v-loading" id="vLoading">
+        <div>正在载入 3D 模型…</div>
+        <div class="bar"><i id="vBar"></i></div>
+        <div id="vMsg" style="font-size:13px">准备中</div>
+      </div>
+      <div class="v-badge" id="vBadge">拖动旋转 · 滚轮缩放</div>
+      <div class="v-tools">
+        <button data-view="side">侧视</button>
+        <button data-view="front">前视</button>
+        <button data-view="top">俯视</button>
+        <button data-view="nose">机头特写</button>
+        <button data-view="engine">发动机特写</button>
+        <button data-view="wing">翼尖特写</button>
+        <button id="btnSpin">自动旋转</button>
+      </div>
+      <div class="v-hint" id="vHint"></div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-m="a320" class="on">A320<small>空客 · 载入中</small></button>
+      <button data-m="b737" disabled>B737<small>波音 · 载入中</small></button>
+      <button data-m="c919" disabled>C919<small>中国商飞 · 载入中</small></button>
+    </div>
+    <div class="spec" id="spec"></div>
+
+    <h2 style="margin-top:34px">眼力挑战 · 六关</h2>
+    <div class="game" id="game">
+      <div class="g-top">
+        <div class="g-round" id="gRound">第 1 关 / 6</div>
+        <div class="g-score" id="gScore">得分 0</div>
+      </div>
+      <div class="g-bar"><i id="gBar"></i></div>
+      <div class="g-q" id="gQ">正在载入模型，请稍候…</div>
+      <div class="g-hint">
+        <button id="btnHint">看提示</button><span id="gHintText"></span>
+      </div>
+      <div class="g-opts" id="gOpts"></div>
+      <div class="g-fb" id="gFb" hidden>
+        <div class="g-fb-title" id="gFbTitle"></div>
+        <div class="g-fb-why" id="gFbWhy"></div>
+        <button class="g-next" id="gNext">下一关 →</button>
+      </div>
+    </div>
+
+    <h2>为什么这样就能认出来</h2>
+    <p>三家公司的设计哲学不同，落到具体机型上就成了稳定的"家族特征"。把上面三个模型转一转，对照着看会发现：</p>
+    <ul>
+      <li><b>机头</b>：波音 737 的机头更尖、驾驶舱侧窗偏方正；空客一派（A320、C919）机头更圆钝、侧窗偏斜。</li>
+      <li><b>发动机</b>：737 为了离地间隙，进气道底部被削平成「扁嘴」；空客和 C919 的发动机是饱满的圆形，C919 的还要更大一号。</li>
+      <li><b>翼尖小翼</b>：737 用向后斜掠的融合式翼梢小翼；A320 和 C919 用竖直的「鲨鱼鳍」。</li>
+    </ul>
+
+    <h2>三机速查表</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>细节</th><th>A320 · 空客</th><th>B737 · 波音</th><th>C919 · 中国商飞</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>机头</td><td><span class="pill">圆钝、略下垂</span></td><td><span class="pill">尖、锐利</span></td><td><span class="pill">圆钝（空客设计语言）</span></td></tr>
+          <tr><td>驾驶舱侧窗</td><td>偏斜、后缘收窄</td><td>偏矩形、方正</td><td>偏斜，与 A320 相近</td></tr>
+          <tr><td>发动机</td><td>圆形、离地较高</td><td>进气道底部削平「扁嘴」</td><td>圆形、直径更大</td></td></tr>
+          <tr><td>翼尖小翼</td><td>鲨鱼鳍 sharklet</td><td>融合式翼梢小翼（后斜）</td><td>鲨鱼鳍 sharklet</td></td></tr>
+          <tr><td>机身长度</td><td>37.57 m</td><td>39.47 m</td><td>38.89 m</td></tr>
+          <tr><td>翼展</td><td>35.80 m</td><td>35.79 m</td><td>35.80 m</td></tr>
+          <tr><td>发动机型号</td><td>LEAP-1A / V2500</td><td>LEAP-1B / CFM56-7B</td><td>LEAP-1A / CJ-1000A</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:30px"><a href="./notes.html">← 返回笔记</a></p>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>© 2026 个人笔记</div>
+    <div><a href="./about.html">关于本站</a> · stephenlinsgh.eu.cc</div>
+  </div>
+</footer>
+
+<script type="importmap">
+{ "imports": { "three": "./assets/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './assets/loaders/GLTFLoader.js';
+
+/* ---------- 机型注册表 ---------- */
+const MODELS = {
+  a320: { name:'A320', cn:'空客', file:'./assets/models/a320.glb',
+    len:'37.57 m', span:'35.80 m', engine:'LEAP-1A / V2500',
+    tip:'圆钝的机头、圆形发动机、竖直的鲨鱼鳍小翼。' },
+  b737: { name:'B737', cn:'波音', file:'./assets/models/b737.glb',
+    len:'39.47 m', span:'35.79 m', engine:'LEAP-1B / CFM56-7B',
+    tip:'尖机头、扁嘴发动机、后斜的融合式翼梢小翼。' },
+  c919: { name:'C919', cn:'中国商飞', file:'./assets/models/c919.glb',
+    len:'38.89 m', span:'35.80 m', engine:'LEAP-1A / CJ-1000A',
+    tip:'空客式圆鼻头、更大的圆形发动机、竖直鲨鱼鳍。' },
+};
+
+const $ = (id) => document.getElementById(id);
+const viewer = $('viewer');
+
+/* ---------- 场景 ---------- */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.3, 5000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+viewer.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe6f0fa, 0x8fa2b5, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 0.85); key.position.set(60, 90, 50); scene.add(key);
+const fill = new THREE.DirectionalLight(0xcfe0f2, 0.35); fill.position.set(-80, 25, -40); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.25); rim.position.set(10, -50, -90); scene.add(rim);
+
+function resize() {
+  const w = viewer.clientWidth || 800, h = viewer.clientHeight || 420;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+/* ---------- 自实现轨道控制 ---------- */
+let dragging=false, lastX=0, lastY=0;
+let theta=-Math.PI/2, phi=Math.PI/2, radius=94;
+const target = new THREE.Vector3(0,0,0);
+let spin=false;
+const cv = renderer.domElement;
+
+cv.addEventListener('pointerdown', e => {
+  dragging=true; lastX=e.clientX; lastY=e.clientY; spin=false; updateSpinBtn();
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  cv.style.cursor='grabbing';
+});
+cv.addEventListener('pointermove', e => {
+  if(!dragging) return;
+  theta -= (e.clientX-lastX)*0.008;
+  phi = Math.max(0.10, Math.min(Math.PI-0.10, phi-(e.clientY-lastY)*0.008));
+  lastX=e.clientX; lastY=e.clientY;
+});
+['pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,()=>{dragging=false;cv.style.cursor='grab';}));
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  radius = Math.max(10, Math.min(320, radius*(1+Math.sign(e.deltaY)*0.12)));
+},{passive:false});
+cv.style.cursor='grab';
+
+function updateCamera(){
+  const s=Math.sin(phi);
+  camera.position.set(
+    target.x+radius*s*Math.cos(theta),
+    target.y+radius*Math.cos(phi),
+    target.z+radius*s*Math.sin(theta));
+  camera.lookAt(target);
+}
+
+/* ---------- 视角预设 ---------- */
+/* rf = 相机距离 / 包围球半径，保证任何大小的模型都能恰好入画
+   特写视角的注视点由 measureAnchors() 从真实几何量出（机头/发动机/翼尖），
+   写死偏移量会在模型朝向或尺寸变化后对不准 */
+const VIEWS = {
+  side:   { t:-Math.PI/2, p:Math.PI/2, rf:2.35, on:null, h:'侧视：最容易对比机身长度与机头形状' },
+  front:  { t:0,           p:Math.PI/2, rf:2.30, on:null, h:'前视：看翼展与翼尖小翼朝向' },
+  top:    { t:-Math.PI/2, p:0.14,       rf:2.60, on:null, h:'俯视：看机翼平面形状' },
+  nose:   { t:-Math.PI/2, p:Math.PI/2, rf:0.80, on:'nose',   h:'机头特写：对比圆钝 / 尖削的机头' },
+  engine: { t:-Math.PI/2, p:Math.PI/2, rf:0.34, on:'engine', h:'发动机特写：看进气道下缘是否被削平' },
+  // 翼尖：斜后上方看过去，小翼的竖直/后斜轮廓最清楚
+  wing:   { t:-Math.PI/2+0.55, p:Math.PI/2-0.20, rf:0.28, on:'wing', h:'翼尖特写：看小翼是竖直还是后斜' },
+};
+// 当前模型的包围球半径（载入后更新）
+let modelRadius = 40;
+let curView = "side";
+function setView(v){
+  curView = v;
+  const p=VIEWS[v]; if(!p) return;
+  theta=p.t; phi=p.p;
+  radius = modelRadius * p.rf;
+  // 注视点：优先用实测特征点，缺失时退回机身中心
+  const a = currentObj && currentObj.userData.anchor;
+  const pt = p.on && a && a[p.on];
+  if(pt) target.set(pt[0], pt[1], pt[2]);
+  else    target.set(0,0,0);
+  $('vHint').textContent=p.h;
+  document.querySelectorAll('.v-tools button[data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===v));
+}
+document.querySelectorAll('.v-tools button[data-view]').forEach(b=>{
+  b.addEventListener('click',()=>{ spin=false; updateSpinBtn(); setView(b.dataset.view); });
+});
+$('btnSpin').addEventListener('click',()=>{ spin=!spin; updateSpinBtn(); });
+function updateSpinBtn(){ $('btnSpin').classList.toggle('on', spin); }
+
+/* ---------- 载入模型 ---------- */
+const loader = new GLTFLoader();
+const models = {};
+let currentKey = null, currentObj = null, loaded = 0;
+const TOTAL = 3;
+
+function setLoading(on,msg){
+  const l=$('vLoading');
+  if(on){ l.classList.remove('hide'); if(msg){$('vMsg').textContent=msg; $('vBar').style.width='0%';} }
+  else l.classList.add('hide');
+}
+
+function polish(obj, key){
+  const box=new THREE.Box3().setFromObject(obj);
+  const c=box.getCenter(new THREE.Vector3());
+  obj.position.sub(c);
+  obj.traverse(o=>{
+    if(!o.isMesh) return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach(m=>{
+      if(!m) return;
+      // 原始 VRay 材质偏暗且无贴图：适度提亮，压低金属感做出哑光机身质感
+      if(m.color) m.color.lerp(new THREE.Color(0xffffff),0.12);
+      if(m.metalness!==undefined) m.metalness=0.0;
+      if(m.roughness!==undefined) m.roughness=Math.max(m.roughness??0.6,0.55);
+      m.side=THREE.FrontSide; m.needsUpdate=true;
+    });
+  });
+  normalizeOrientation(obj, key);
+  // 旋转之后几何中心会跑偏，再对齐一次原点，保证三机同框对比时位置一致
+  obj.position.add(new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()).negate());
+  obj.updateMatrixWorld(true);
+  obj.userData.radius = new THREE.Box3().setFromObject(obj)
+    .getBoundingSphere(new THREE.Sphere()).radius || 40;
+  measureAnchors(obj, key);
+}
+
+/* 从实际几何量出机头 / 翼尖 / 发动机的位置，供特写视角对准。
+   写死偏移量在换模型或改朝向后就会对不准，这里按几何特征现算。 */
+function measureAnchors(obj, key){
+  const pos=[];
+  obj.traverse(o=>{
+    if(!o.isMesh || !o.geometry) return;
+    const p=o.geometry.getAttribute('position'); if(!p) return;
+    o.updateWorldMatrix(true,false);
+    const m=o.matrixWorld, v=new THREE.Vector3();
+    const step = Math.max(1, Math.floor(p.count/6000)); // 采样，兼顾速度与精度
+    for(let i=0;i<p.count;i+=step){ v.fromBufferAttribute(p,i).applyMatrix4(m); pos.push([v.x,v.y,v.z]); }
+  });
+  if(!pos.length) return;
+  const lo=[Infinity,Infinity,Infinity], hi=[-Infinity,-Infinity,-Infinity];
+  for(const w of pos) for(let c=0;c<3;c++){ if(w[c]<lo[c])lo[c]=w[c]; if(w[c]>hi[c])hi[c]=w[c]; }
+  const span=[hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]];
+  const mid=v=>v.reduce((s,w)=>s+w,0)/v.length;
+  const pick=(set)=>set.length?[0,1,2].map(c=>mid(set.map(w=>w[c]))):null;
+
+  // 机头：x 最小的一小撮（取最前 3%）
+  const xmin=lo[0];
+  const nose=pick(pos.filter(w=>w[0]<xmin+span[0]*0.03));
+
+  // 翼尖小翼：|z| 最大的一小撮（取 +Z 侧）
+  const zmax=hi[2];
+  const wing=pick(pos.filter(w=>w[2]>zmax-span[2]*0.02));
+
+  // 发动机：在翼展 20%~62% 区间内、明显低于机腹的最低簇
+  const hz=span[2]/2;
+  const belly=mid(pos.filter(w=>Math.abs(w[2])<1.2).map(w=>w[1]).sort((a,b)=>a-b));
+  const lowBand=pos.filter(w=>w[2]>hz*0.20 && w[2]<hz*0.62 && w[1]<belly-0.1);
+  let engine=null;
+  if(lowBand.length>30){
+    const ys=lowBand.map(w=>w[1]).sort((a,b)=>a-b);
+    const ymin=ys[Math.floor(ys.length*0.05)];
+    let cluster=lowBand.filter(w=>w[1]<ymin+Math.max(0.8,(belly-ymin)*0.35));
+    const fwd=cluster.filter(w=>w[0]<span[0]*0.15);
+    if(fwd.length>30) cluster=fwd;
+    engine=pick(cluster);
+  }
+  // 侧视/特写时相机在 -Z 侧，所以把发动机与翼尖统一取到近侧的 -Z，避免被机身挡住
+  if(engine) engine[2] = -Math.abs(engine[2]);
+  if(wing)  wing[2]  = -Math.abs(wing[2]);
+  obj.userData.anchor={ nose, wing, engine };
+}
+
+/*摆正模型：客机的三个轴中，机身最长、翼展次之、高度最短。
+   若当前包围盒不是「X最长 / Y最短」的状态，则绕Z轴把长轴转到X、矮轴转到Y。 */
+function normalizeOrientation(obj, key){
+  obj.updateWorldMatrix(true,true);
+  const inv=new THREE.Matrix4().copy(obj.matrixWorld).invert();
+  const size=new THREE.Vector3();
+  let box=new THREE.Box3();
+  obj.traverse(o=>{
+    if(!o.isMesh||!o.geometry) return;
+    if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    const b=o.geometry.boundingBox.clone().applyMatrix4(
+      new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld));
+    box.union(b);
+  });
+  box.getSize(size);
+  const d=[size.x,size.y,size.z];
+  // 三机统一约定：机身长=X、翼展=Z、高=Y，且**机头一律朝 -X**。
+  // 三个原始模型的朝向各不相同：
+  //   A320  机身已经沿 X、只是机头朝 +Z  → 绕 Y -90°
+  //   B737 / C919 机身沿 X、机头朝 +X、上方朝 +Z → 需绕 X -90° 再绕 Y 180°
+  // 注意：欧拉角必须用 'YXZ' 顺序。three.js 默认 'XYZ' 会把 Y 的旋转作用在
+  // 已经躺倒的机体上，结果是飞机上下颠倒（前视图里尾翼朝下、发动机跑到机翼上方）。
+  const FIX = {
+    a320:{x:0,          y:-Math.PI/2, order:'XYZ'},
+    b737:{x:-Math.PI/2, y: Math.PI,   order:'YXZ'},
+    c919:{x:-Math.PI/2, y: Math.PI,   order:'YXZ'},
+  };
+  const f = FIX[key];
+  if(f){
+    obj.rotation.order = f.order;
+    obj.rotation.set(f.x, f.y, 0);
+    obj.updateMatrixWorld(true);
+    return;
+  }
+
+  const longIsX = d[0] >= d[1] && d[0] >= d[2];
+  const shortIsY = d[1] <= d[2];
+  if(longIsX && shortIsY) return;                // 已正确
+  if(!longIsX){
+    const longest = d[0] >= d[1] && d[0] >= d[2] ? 0 : (d[1] >= d[2] ? 1 : 2);
+    obj.rotation.z += (longest === 1 ? -Math.PI/2 : Math.PI/2);
+  }else{
+    obj.rotation.x += (d[2] < d[1] ? -Math.PI/2 : Math.PI/2);
+  }
+}
+
+function onLoaded(key, gltf){
+  try{
+    polish(gltf.scene, key);
+  }catch(err){
+    console.error('模型处理失败', key, err);
+  }
+  models[key]=gltf.scene;
+  loaded++;
+  $('vBar').style.width=Math.round(loaded/TOTAL*100)+'%';
+  const tab=document.querySelector('.tabs button[data-m="'+key+'"]');
+  if(tab){ tab.disabled=false; tab.querySelector('small').textContent=MODELS[key].cn; }
+  // 只要有任意一个模型可用就立刻出画面，剩余的在后台继续加载
+  if(!currentKey && models[key]) showModel(key);
+  if(loaded>=TOTAL) finishLoading();
+}
+
+const failed = [];
+function finishLoading(){
+  if(failed.length===TOTAL){
+    $('vMsg').innerHTML='模型加载失败：<br>'+failed.map(k=>MODELS[k].name).join('、')+
+      '<br><small>请确认 assets/models/ 下的 .glb 文件已随页面一起上传</small>';
+    return;   // 保留遮罩，把原因写清楚
+  }
+  setLoading(false);
+  if(failed.length){
+    $('vHint').textContent='提示：'+failed.map(k=>MODELS[k].name).join('、')+' 载入失败，其余机型可正常查看';
+  }
+}
+
+// 逐个串行加载，避免三份大模型并发抢带宽；任一失败都继续下一个
+const queue=['a320','b737','c919'];
+let doneAll=false;
+function loadNext(){
+  if(doneAll) return;
+  if(!queue.length){
+    if(loaded+failed.length>=TOTAL){ doneAll=true; finishLoading(); }
+    else loadNext();          // 防御：状态不一致时别停住
+    return;
+  }
+  const k=queue.shift();
+  setLoading(true, '正在载入 '+MODELS[k].name+'…（'+Math.round((TOTAL-queue.length)/TOTAL*100)+'%）');
+  loader.load(MODELS[k].file,
+    gltf=>{ onLoaded(k, gltf); loadNext(); },
+    xhr=>{ if(xhr.total){ $('vBar').style.width=Math.round(xhr.loaded/xhr.total*90)+'%'; $('vMsg').textContent=MODELS[k].name+' 下载中 '+Math.round(xhr.loaded/xhr.total*100)+'%'; } },
+    err=>{
+      console.error('载入失败', k, err);
+      failed.push(k);
+      const tab=document.querySelector('.tabs button[data-m="'+k+'"]');
+      if(tab){ tab.disabled=true; tab.querySelector('small').textContent='加载失败'; }
+      $('vBar').style.width=Math.round((loaded+failed.length)/TOTAL*100)+'%';
+      loadNext();
+    }
+  );
+}
+loadNext();
+
+// 兜底：60 秒后无论如何都把遮罩收掉，避免无限等待
+setTimeout(()=>{ if(!doneAll && !document.getElementById('vLoading').classList.contains('hide')){ doneAll=true; finishLoading(); } }, 60000);
+
+function showModel(key){
+  if(!models[key]) return;
+  if(currentObj){ scene.remove(currentObj); currentObj=null; }
+  currentKey=key; currentObj=models[key]; scene.add(currentObj);
+  modelRadius = currentObj.userData.radius || 40;   // 自适应取景半径
+  const m=MODELS[key];
+  $('vBadge').textContent=m.name+' · '+m.cn+' — 拖动旋转 · 滚轮缩放';
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.m===key));
+  $('spec').innerHTML='<span>机身长 <b>'+m.len+'</b></span><span>翼展 <b>'+m.span+'</b></span>'+
+    '<span>发动机 <b>'+m.engine+'</b></span><span>识别要点：'+m.tip+'</span>';
+  setView(curView);
+}
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{ if(!b.disabled) showModel(b.dataset.m); });
+});
+
+/* ---------- 渲染循环 ---------- */
+function loop(){
+  requestAnimationFrame(loop);
+  if(spin) theta+=0.006;
+  updateCamera();
+  renderer.render(scene,camera);
+}
+resize(); setView('side'); loop();
+
+/* ================= 游戏 ================= */
+const ROUNDS=[
+ { q:'镜头已对准发动机：这架的进气道底部被削平了，侧面看像个「扁嘴」。它是谁？',
+   view:'engine', answer:'b737',
+   hint:'波音 737 的发动机为了离地间隙吊得更低，底面被切掉一块。',
+   why:'<b>波音 737</b>的发动机为了留出离地间隙，整流罩底部被削平成「扁嘴」。这是 737 最好认的招牌之一，切到发动机视角一看就很明显。' },
+ { q:'三架里，这一台的发动机直径最大。它是谁？',
+   view:'engine', answer:'c919',
+   hint:'C919 的机身比 A320 略大，配套发动机也更大一号。',
+   why:'<b>C919</b> 比 A320 略大一号，配套的 LEAP-1A / CJ-1000A 发动机直径也更大。对比三个模型的发动机特写就能看出差别。' },
+ { q:'镜头对准机头：机头尖尖的，驾驶舱侧窗方方正正。它是谁？',
+   view:'nose', answer:'b737',
+   hint:'波音机头更尖、侧窗偏矩形；空客一派偏圆钝、偏斜。',
+   why:'<b>波音 737</b>的机头更尖更锐利，驾驶舱侧窗接近矩形。A320 和 C919 都源自空客的设计语言，机头更圆钝、侧窗后缘收窄成斜角。' },
+ { q:'镜头对准翼尖：翼尖上是一片向后斜掠的小翼。它是谁？',
+   view:'wing', answer:'b737',
+   hint:'737 用后斜的融合式翼梢小翼，空客一派用竖直的鲨鱼鳍。',
+   why:'<b>波音 737</b>用的是 blended winglet（融合式翼梢小翼），向后斜掠；A320 和 C919 用的是竖直的 sharklet（鲨鱼鳍）。' },
+ { spot:true }, { spot:true },
+];
+
+let idx=0, score=0, streak=0, answered=false, hinted=false, pick=null;
+const G={ round:$('gRound'), score:$('gScore'), bar:$('gBar'), q:$('gQ'), opts:$('gOpts'),
+  fb:$('gFb'), fbT:$('gFbTitle'), fbW:$('gFbWhy'), next:$('gNext'),
+  hint:$('gHintText'), btnHint:$('btnHint') };
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function updateTop(){
+  G.round.textContent='第 '+Math.min(idx+1,ROUNDS.length)+' 关 / '+ROUNDS.length;
+  G.score.textContent='得分 '+score;
+  G.bar.style.width=(idx/ROUNDS.length*100)+'%';
+}
+
+function renderRound(){
+  if(idx>=ROUNDS.length) return finishGame();
+  const r=ROUNDS[idx];
+  answered=false; hinted=false;
+  G.hint.textContent=''; G.fb.hidden=true; G.opts.innerHTML='';
+  updateTop();
+
+  if(r.spot){
+    pick=shuffle(['a320','b737','c919'])[0];
+    G.q.textContent='随便转一转这台模型，凭整体轮廓认一认——它是哪一款？';
+    if(models[pick]){ showModel(pick); spin=true; updateSpinBtn(); }
+    else { G.q.textContent+='（模型仍在载入，请稍候再点下一关）'; }
+  }else{
+    pick=r.answer;
+    G.q.textContent=r.q;
+    spin=false; updateSpinBtn();
+    if(models[pick]) showModel(pick);
+    setTimeout(()=>setView(r.view),40);
+  }
+
+  shuffle(['a320','b737','c919']).forEach(k=>{
+    const b=document.createElement('button');
+    b.textContent=MODELS[k].name;
+    b.onclick=()=>answer(k,b);
+    G.opts.appendChild(b);
+  });
+}
+
+function answer(guess,btn){
+  if(answered) return;
+  answered=true;
+  const r=ROUNDS[idx];
+  const ok=guess===pick;
+  [...G.opts.children].forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===MODELS[pick].name) b.classList.add('right');
+  });
+  if(!ok) btn.classList.add('wrong');
+  if(ok){ score+=10; streak++; if(streak%3===0) score+=5; } else streak=0;
+
+  G.fb.hidden=false;
+  G.fb.className='g-fb '+(ok?'ok':'no');
+  G.fbT.textContent= ok?'✅ 答对了！':'❌ 差一点';
+  const why = r.spot
+    ? MODELS[pick].tip+'。用「机头 / 发动机 / 翼尖特写」逐一验证，最容易锁定。'
+    : r.why;
+  G.fbW.innerHTML=(ok?'':'正确答案是 <b>'+MODELS[pick].name+'（'+MODELS[pick].cn+'）</b>。')+why;
+  G.next.textContent = idx===ROUNDS.length-1 ? '看看成绩 →':'下一关 →';
+  updateTop();
+}
+
+function finishGame(){
+  spin=false; updateSpinBtn();
+  G.q.textContent='全部通关！';
+  G.opts.innerHTML='';
+  G.fb.hidden=false; G.fb.className='g-fb ok';
+  G.fbT.textContent='🎉 挑战完成';
+  const rk = score>=60?'🏆 资深航空爱好者 —— 你基本机场门口一站就能认全。'
+    : score>=40?'🥈 眼力不错 —— 三大特征都记住了，多转转模型巩固一下。'
+    : score>=20?'🥉 初窥门径 —— 回去把上面那张速查表再过一遍。'
+    :'🌱 入门阶段 —— 别急，先记住「扁嘴发动机」和「尖机头」这两条最明显的线索。';
+  G.fbW.innerHTML='<div class="g-final"><div class="big">'+score+' 分</div><div class="rank">'+rk+'</div></div>';
+  G.next.textContent='↻ 再玩一次';
+  G.bar.style.width='100%';
+  G.round.textContent='完成 / '+ROUNDS.length;
+  G.score.textContent='得分 '+score;
+}
+
+G.btnHint.onclick=()=>{
+  if(hinted||answered) return;
+  hinted=true;
+  const r=ROUNDS[idx];
+  G.hint.textContent='💡 '+(r.spot
+    ? '圆钝机头 = 空客一派；扁嘴发动机 = 737；竖直小翼 = 空客 / C919。'
+    : r.hint);
+};
+G.next.onclick=()=>{
+  if(idx>=ROUNDS.length){ idx=0; score=0; streak=0; pick=null; }
+  else idx++;
+  renderRound();
+};
+
+// 题目不依赖具体模型，只要有一个模型就绪就能开始答题
+const waitReady=setInterval(()=>{
+  if(loaded+failed.length>=TOTAL){ clearInterval(waitReady); renderRound(); }
+  else if(loaded>=1){ clearInterval(waitReady); renderRound(); }
+},250);
+</script>
+
+</body>
+</html>

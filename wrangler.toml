@@ -1,0 +1,37 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "personal-notes"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# ---------------------------------------------------------------------------
+# 网站静态文件（首页、3D 游戏页、GLB 模型、CSS）
+# 直接从仓库里的 feiyou-notes-github 目录读取，不进数据库
+# ---------------------------------------------------------------------------
+[assets]
+directory = "feiyou-notes-github"
+binding = "ASSETS"
+not_found_handling = "none"
+
+# ---------------------------------------------------------------------------
+# 数据库（D1）：文章存这里
+# 部署前把 database_id 换成你在 Cloudflare 后台建的 personal_notes 的 id
+# ---------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "personal_notes"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+# ---------------------------------------------------------------------------
+# 图片存储（R2）：封面图、正文插图上传到这里，通过 /img/... 读取
+# 部署前先在 Cloudflare 后台建一个 R2 存储桶，名字必须是 personal-notes-media
+# ---------------------------------------------------------------------------
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "personal-notes-media"
+
+# ---------------------------------------------------------------------------
+# 环境变量（非机密）
+# 管理员密码 ADMIN_PASSWORD 走 Cloudflare 后台的「变量和机密」(secret)，不要写在这里
+# ---------------------------------------------------------------------------
+[vars]
+SITE_TITLE = "个人笔记"
