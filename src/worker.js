@@ -522,7 +522,7 @@ async function del(id) {
 
 // 把网站上原有的静态文章一次性导入数据库，之后就能在上面编辑
 $('importBtn').onclick = async function () {
-  if (!confirm('把网站上原有的文章导入后台？已导入过的会自动跳过，不会重复。')) return
+  if (!confirm('把网站上原有的文章导入后台？已导入过的会保留你的正文修改，只清掉自动带入的封面。')) return
   var btn = $('importBtn')
   btn.disabled = true
   $('importMsg').textContent = '导入中…'
@@ -685,7 +685,16 @@ app.post('/api/admin/import', requireAuth, async (c) => {
   const items = []
   for (const p of importedPosts) {
     const dup = await c.env.DB.prepare('SELECT id FROM posts WHERE slug=?').bind(p.slug).first()
-    if (dup) { skipped++; items.push(p.slug + ':skipped'); continue }
+    if (dup) {
+      // 文章已存在：只同步封面。
+      // 之前导入时把「正文第一张图」误设成了封面，现在导入数据里封面为空，
+      // 这一步会把旧值清掉；标题和正文保持后台里改过的样子，不覆盖。
+      await c.env.DB.prepare('UPDATE posts SET cover=? WHERE id=?')
+        .bind(p.cover || null, dup.id).run()
+      skipped++
+      items.push(p.slug + ':skipped')
+      continue
+    }
     try {
       await c.env.DB.prepare(
         `INSERT INTO posts (slug,title,category,summary,content,cover,created_at,updated_at)

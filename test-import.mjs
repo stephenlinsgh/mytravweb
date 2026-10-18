@@ -28,6 +28,12 @@ const DB = {
           store.push({ id: nextId++, slug, title, category, summary, content, cover, created_at, updated_at })
           return { meta: { changes: 1 } }
         }
+        if (/UPDATE posts SET cover=\? WHERE id=\?/i.test(sql)) {
+          const p = store.find((x) => x.id === Number(args[1]))
+          if (!p) return { meta: { changes: 0 } }
+          p.cover = args[0]
+          return { meta: { changes: 1 } }
+        }
         if (/UPDATE posts/i.test(sql)) {
           const id = args[args.length - 1]
           const p = store.find((x) => x.id === Number(id))
@@ -140,6 +146,22 @@ async function main() {
   check('每条都有正文', importedPosts.every((p) => p.content && p.content.length > 100))
   check('分类合法', importedPosts.every((p) => ['travel', 'notes', 'sports', 'visit'].includes(p.category)))
   check('无重复 slug', new Set(importedPosts.map((p) => p.slug)).size === 10)
+
+  console.log('=== 9. 封面与正文分开 ===')
+  check('导入数据封面全为空（不拿正文图冒充）', importedPosts.every((p) => !p.cover))
+  check('正文里的图片仍然保留', importedPosts.some((p) => /!\[[^\]]*\]\(\/assets\/travels\//.test(p.content)))
+
+  // 模拟旧版本留下的错误封面，再导一次应该被清掉，且正文不被覆盖
+  const bj = store.find((p) => p.slug === 'note-beijing')
+  bj.cover = '/assets/travels/beijing.jpg'
+  bj.content = '用户自己改过的正文'
+  r = await app.request('/api/admin/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: '{}'
+  }, env)
+  check('再次导入清空旧封面', !bj.cover, 'cover=' + bj.cover)
+  check('正文修改未被覆盖', bj.content === '用户自己改过的正文', bj.content)
 
   console.log('')
   console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')

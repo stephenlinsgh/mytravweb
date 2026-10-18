@@ -154,10 +154,10 @@ function pickBody(html) {
   return m ? m[1] : ''
 }
 
-function pickCover(html) {
-  const article = pickBody(html)
-  const m = article.match(/<img[^>]*src="([^"]*)"/i)
-  return m ? abs(m[1]) : ''
+// 封面不自动从正文取图。
+// 正文里的照片是内容的一部分，不该冒充封面；需要封面时在后台单独上传。
+function pickCover() {
+  return ''
 }
 
 /** 从 .pill 里找 2024.07.02 这样的日期 */
