@@ -203,6 +203,23 @@ async function main() {
   check('英文数字标题', firstChar('A320 体验') === 'A', firstChar('A320 体验'))
   check('纯符号兜底', firstChar('!!!') === '·', firstChar('!!!'))
 
+  console.log('=== 12. 前台公开接口搜索 ===')
+  r = await app.request('/api/public/posts?q=' + encodeURIComponent('宁波'), {}, env)
+  const ps = await r.json()
+  check('前台搜「宁波」有结果', (ps.posts || []).length >= 1, 'len=' + (ps.posts || []).length)
+  check('前台结果含关键词', (ps.posts || []).every((p) => (p.title + p.summary).includes('宁波')))
+
+  r = await app.request('/api/public/posts?category=travel&q=' + encodeURIComponent('宁波'), {}, env)
+  const ps2 = await r.json()
+  check('前台分类 + 搜索叠加', (ps2.posts || []).length >= 1 && (ps2.posts || []).every((p) => p.category === 'travel'))
+
+  r = await app.request('/api/public/posts?q=' + encodeURIComponent('不存在xyz'), {}, env)
+  const ps3 = await r.json()
+  check('前台搜不到返回空', (ps3.posts || []).length === 0, 'len=' + (ps3.posts || []).length)
+
+  r = await app.request('/api/public/posts?q=' + encodeURIComponent('宁波'), {}, env)
+  check('前台搜索无需登录', r.status === 200, 'status=' + r.status)
+
   console.log('')
   console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')
   if (fail > 0) process.exit(1)

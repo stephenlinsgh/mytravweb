@@ -667,10 +667,22 @@ app.get('/api/me', async (c) =>
 app.get('/api/public/posts', async (c) => {
   await ensureSchema(c.env.DB)
   const cat = c.req.query('category')
-  const sql = cat
-    ? 'SELECT slug,title,category,summary,cover,created_at FROM posts WHERE category=? ORDER BY created_at DESC LIMIT 200'
-    : 'SELECT slug,title,category,summary,cover,created_at FROM posts ORDER BY created_at DESC LIMIT 200'
-  const { results } = await c.env.DB.prepare(sql).bind(...(cat ? [cat] : [])).all()
+  const q = (c.req.query('q') || '').trim()
+
+  const where = []
+  const args = []
+  if (cat) { where.push('category=?'); args.push(cat) }
+  if (q) {
+    // 前台搜索同样覆盖标题、摘要、正文
+    where.push('(title LIKE ? OR summary LIKE ? OR content LIKE ?)')
+    const like = '%' + q + '%'
+    args.push(like, like, like)
+  }
+
+  const sql = `SELECT slug,title,category,summary,cover,created_at FROM posts
+               ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+               ORDER BY created_at DESC LIMIT 200`
+  const { results } = await c.env.DB.prepare(sql).bind(...args).all()
   return c.json({ posts: results })
 })
 

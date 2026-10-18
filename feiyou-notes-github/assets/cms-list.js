@@ -8,10 +8,11 @@
  * 留空则列出全部分类的文章。
  *
  * 它做什么：
- *   1. 找到页面上带data-cms-slot 的容器
- *   2. 调 /api/public/posts?category=xxx 从数据库拉文章
- *   3. 渲染成卡片列表
- *   4. 拉不到就保持原样（本地预览、无网络时页面照常显示）
+ *   1. 找到页面上带 data-cms-slot 的容器
+ *   2. 在列表前面插入一个搜索框（本栏目内搜索，带顶部进度条）
+ *   3. 调 /api/public/posts 从数据库拉文章（支持 ?category= 和 ?q=）
+ *   4. 渲染成卡片列表
+ *   5. 拉不到就保持原样（本地预览、无网络时页面照常显示）
  */
 (function () {
   'use strict'
@@ -29,6 +30,49 @@
     init()
   }
 
+  /* ---------------- 顶部进度条 ---------------- */
+  var progressEl = null
+  var progressAt = 0
+
+  function ensureProgress() {
+    if (progressEl) return progressEl
+    progressEl = document.createElement('div')
+    progressEl.className = 'cms-progress'
+    progressEl.innerHTML = '<i></i>'
+    document.body.appendChild(progressEl)
+    return progressEl
+  }
+
+  function progressStart() {
+    var el = ensureProgress()
+    var fill = el.querySelector('i')
+    progressAt = Date.now()
+    el.classList.add('on')
+    fill.style.transition = 'none'
+    fill.style.width = '0'
+    void fill.offsetWidth
+    fill.style.transition = 'width .3s ease'
+    fill.style.width = '72%'
+  }
+
+  function progressDone() {
+    var el = ensureProgress()
+    var fill = el.querySelector('i')
+    // 请求太快时也让它至少走 320ms，不然一闪就没
+    var wait = Math.max(0, 320 - (Date.now() - progressAt))
+    setTimeout(function () {
+      fill.style.width = '100%'
+      setTimeout(function () {
+        el.classList.remove('on')
+        setTimeout(function () {
+          fill.style.transition = 'none'
+          fill.style.width = '0'
+        }, 260)
+      }, 220)
+    }, wait)
+  }
+
+  /* ---------------- 列表 + 搜索 ---------------- */
   function init() {
     var slot = document.querySelector('[data-cms-slot]')
     if (!slot) return
@@ -36,26 +80,81 @@
     // 先记住原有内容，拉取失败时原样保留
     var original = slot.innerHTML
 
-    fetch('/api/public/posts' + (cat ? '?category=' + encodeURIComponent(cat) : ''), {
-      headers: { Accept: 'application/json' }
+    // 搜索框：插在文章列表前面
+    var box = document.createElement('div')
+    box.className = 'cms-search'
+
+    var input = document.createElement('input')
+    input.type = 'search'
+    input.placeholder = cat ? '在本栏目搜索文章…' : '搜索文章标题或内容…'
+    input.setAttribute('autocomplete', 'off')
+    input.setAttribute('aria-label', '搜索文章')
+
+    var clearBtn = document.createElement('button')
+    clearBtn.type = 'button'
+    clearBtn.textContent = '清除'
+
+    box.appendChild(input)
+    box.appendChild(clearBtn)
+    slot.parentNode.insertBefore(box, slot)
+
+    var timer = null
+    var seq = 0
+
+    function load(kw) {
+      var my = ++seq
+      progressStart()
+
+      var params = []
+      if (cat) params.push('category=' + encodeURIComponent(cat))
+      if (kw) params.push('q=' + encodeURIComponent(kw))
+      var url = '/api/public/posts' + (params.length ? '?' + params.join('&') : '')
+
+      fetch(url, { headers: { Accept: 'application/json' } })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          return r.json()
+        })
+        .then(function (d) {
+          if (my !== seq) return // 只认最后一次请求，避免旧结果盖掉新结果
+          var posts = (d && d.posts) || []
+          if (!posts.length) {
+            slot.innerHTML = kw
+              ? '<p class="cms-empty">没有找到包含「' + esc(kw) + '」的文章。</p>'
+              : '<p class="cms-empty">还没有文章。登录 <a href="/admin">后台</a> 写第一篇吧。</p>'
+            return
+          }
+          slot.innerHTML = posts.map(card).join('')
+        })
+        .catch(function () {
+          if (my !== seq) return
+          // 数据库不可用（本地静态预览）：没搜关键词时保留原有内容
+          if (!kw) slot.innerHTML = original
+          else slot.innerHTML = '<p class="cms-empty">搜索失败，请稍后再试。</p>'
+        })
+        .then(function () {
+          if (my === seq) progressDone()
+        })
+    }
+
+    input.addEventListener('input', function () {
+      clearTimeout(timer)
+      var kw = input.value.trim()
+      timer = setTimeout(function () { load(kw) }, 280)
     })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status)
-        return r.json()
-      })
-      .then(function (d) {
-        var posts = (d && d.posts) || []
-        if (!posts.length) {
-          slot.innerHTML =
-            '<p class="cms-empty">还没有文章。登录 <a href="/admin">后台</a> 写第一篇吧。</p>'
-          return
-        }
-        slot.innerHTML = posts.map(card).join('')
-      })
-      .catch(function () {
-        // 数据库不可用（本地静态预览）：不动原有内容
-        slot.innerHTML = original
-      })
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        clearTimeout(timer)
+        load(input.value.trim())
+      }
+    })
+    clearBtn.addEventListener('click', function () {
+      input.value = ''
+      load('')
+      input.focus()
+    })
+
+    load('')
   }
 
   function esc(s) {

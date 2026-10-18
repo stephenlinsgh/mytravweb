@@ -113,6 +113,31 @@ img{max-width:100%;display:block}
 }
 .cms-empty a{color:var(--blue);text-decoration:underline}
 
+/* 前台文章搜索 */
+.cms-search{display:flex;gap:10px;align-items:center;margin:0 0 20px;flex-wrap:wrap}
+.cms-search input{
+  flex:1;max-width:380px;padding:11px 14px;
+  border:1px solid var(--line);border-radius:10px;
+  font-size:15px;font-family:inherit;color:var(--ink);background:#fff;
+}
+.cms-search input:focus{outline:2px solid var(--sky);border-color:var(--blue)}
+.cms-search button{
+  background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:11px 16px;font-size:14px;color:var(--muted);cursor:pointer;font-family:inherit;
+}
+.cms-search button:hover{border-color:var(--blue);color:var(--blue)}
+/* 搜索 / 加载进度条 */
+.cms-progress{
+  position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;
+  pointer-events:none;opacity:0;transition:opacity .25s;
+}
+.cms-progress.on{opacity:1}
+.cms-progress i{
+  display:block;height:100%;width:0;
+  background:linear-gradient(90deg,#4c8df6,#15457a);
+  box-shadow:0 0 8px rgba(21,69,122,.45);transition:width .3s ease;
+}
+
 /* flight table */
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
 table{width:100%;border-collapse:collapse;font-size:15px;min-width:640px}
