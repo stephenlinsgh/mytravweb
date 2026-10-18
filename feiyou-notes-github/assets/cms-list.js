@@ -1,5 +1,5 @@
 /**
- * 前台文章列表 · 通用脚本
+ * 前台文章列表 + 全站搜索 · 通用脚本
  * ---------------------------------------------------------------------------
  * 用法：在任意页面的 </body> 之前加一行
  *   <script src="/assets/cms-list.js" data-cat="travel"></script>
@@ -8,10 +8,10 @@
  * 留空则列出全部分类的文章。
  *
  * 它做什么：
- *   1. 找到页面上带 data-cms-slot 的容器
- *   2. 在列表前面插入一个搜索框（本栏目内搜索，带顶部进度条）
- *   3. 调 /api/public/posts 从数据库拉文章（支持 ?category= 和 ?q=）
- *   4. 渲染成卡片列表
+ *   1. 在导航栏「个人笔记」右边插入一个搜索框（搜全站，带顶部进度条）
+ *   2. 页面上有 [data-cms-slot] 时，把本栏目的文章渲染进去
+ *   3. 搜索时不分栏目，结果里会标出每篇所属分类
+ *   4. 页面没有槽位（比如首页）时，搜索结果动态插到 main 末尾
  *   5. 拉不到就保持原样（本地预览、无网络时页面照常显示）
  */
 (function () {
@@ -75,39 +75,69 @@
   /* ---------------- 列表 + 搜索 ---------------- */
   function init() {
     var slot = document.querySelector('[data-cms-slot]')
-    if (!slot) return
-
+    var resultBox = null
     // 先记住原有内容，拉取失败时原样保留
-    var original = slot.innerHTML
+    var original = slot ? slot.innerHTML : ''
 
-    // 搜索框：插在文章列表前面
+    // 搜索框：放到导航栏「个人笔记」右边
     var box = document.createElement('div')
-    box.className = 'cms-search'
+    box.className = 'nav-search'
 
     var input = document.createElement('input')
     input.type = 'search'
-    input.placeholder = cat ? '在本栏目搜索文章…' : '搜索文章标题或内容…'
+    input.placeholder = '搜索全站文章…'
     input.setAttribute('autocomplete', 'off')
-    input.setAttribute('aria-label', '搜索文章')
+    input.setAttribute('aria-label', '搜索全站文章')
 
     var clearBtn = document.createElement('button')
     clearBtn.type = 'button'
-    clearBtn.textContent = '清除'
+    clearBtn.textContent = '×'
+    clearBtn.setAttribute('aria-label', '清除搜索')
 
     box.appendChild(input)
     box.appendChild(clearBtn)
-    slot.parentNode.insertBefore(box, slot)
+
+    var navInner = document.querySelector('.nav-inner')
+    var brand = navInner ? navInner.querySelector('.brand') : null
+    if (navInner && brand) {
+      navInner.insertBefore(box, brand.nextSibling)
+    } else if (slot) {
+      slot.parentNode.insertBefore(box, slot)
+    }
+
+    // 结果显示位置：优先用页面上的 CMS 槽位；
+    // 页面没有槽位（比如首页）时，搜索后动态建一个结果区
+    function target() {
+      if (slot) return slot
+      if (!resultBox) {
+        resultBox = document.createElement('div')
+        resultBox.className = 'grid cms-results'
+        var main = document.querySelector('main') || document.body
+        // 插到 main 开头，搜索后不用往下翻
+        main.insertBefore(resultBox, main.firstChild)
+      }
+      return resultBox
+    }
 
     var timer = null
     var seq = 0
 
     function load(kw) {
+      // 没有 CMS 槽位、也没输入关键词：什么都不做（首页平时不显示文章列表）
+      if (!slot && !kw) {
+        if (resultBox) resultBox.innerHTML = ''
+        return
+      }
+
       var my = ++seq
       progressStart()
 
       var params = []
-      if (cat) params.push('category=' + encodeURIComponent(cat))
-      if (kw) params.push('q=' + encodeURIComponent(kw))
+      if (kw) {
+        params.push('q=' + encodeURIComponent(kw)) // 有关键词就搜全站
+      } else if (cat) {
+        params.push('category=' + encodeURIComponent(cat)) // 平时只看本栏目
+      }
       var url = '/api/public/posts' + (params.length ? '?' + params.join('&') : '')
 
       fetch(url, { headers: { Accept: 'application/json' } })
@@ -118,19 +148,32 @@
         .then(function (d) {
           if (my !== seq) return // 只认最后一次请求，避免旧结果盖掉新结果
           var posts = (d && d.posts) || []
+          var out = target()
+
           if (!posts.length) {
-            slot.innerHTML = kw
+            // 平时不显示「还没有文章」这类提示；只有搜索时给一句反馈
+            out.innerHTML = kw
               ? '<p class="cms-empty">没有找到包含「' + esc(kw) + '」的文章。</p>'
-              : '<p class="cms-empty">还没有文章。登录 <a href="/admin">后台</a> 写第一篇吧。</p>'
+              : ''
             return
           }
-          slot.innerHTML = posts.map(card).join('')
+
+          if (kw) {
+            // 全站搜索结果：按分类分组，每组标出篇数
+            out.innerHTML = grouped(posts)
+          } else {
+            // 栏目页平时只显示本栏目，不用再标分类
+            out.innerHTML = posts.map(function (p) { return card(p, false) }).join('')
+          }
         })
         .catch(function () {
           if (my !== seq) return
           // 数据库不可用（本地静态预览）：没搜关键词时保留原有内容
-          if (!kw) slot.innerHTML = original
-          else slot.innerHTML = '<p class="cms-empty">搜索失败，请稍后再试。</p>'
+          if (!kw) {
+            if (slot) slot.innerHTML = original
+          } else {
+            target().innerHTML = '<p class="cms-empty">搜索失败，请稍后再试。</p>'
+          }
         })
         .then(function () {
           if (my === seq) progressDone()
@@ -138,6 +181,7 @@
     }
 
     input.addEventListener('input', function () {
+      box.classList.toggle('has-value', input.value !== '')
       clearTimeout(timer)
       var kw = input.value.trim()
       timer = setTimeout(function () { load(kw) }, 280)
@@ -150,11 +194,13 @@
     })
     clearBtn.addEventListener('click', function () {
       input.value = ''
+      box.classList.remove('has-value')
       load('')
       input.focus()
     })
 
-    load('')
+    // 有槽位的页面才需要首次拉列表；首页没有槽位，等用户搜索
+    if (slot) load('')
   }
 
   function esc(s) {
@@ -183,13 +229,45 @@
     visit: '参观'
   }
 
+  // 搜索结果的分类顺序
+  var GROUPS = [
+    { key: 'travel', name: '旅行' },
+    { key: 'notes', name: '笔记' },
+    { key: 'sports', name: '运动' },
+    { key: 'visit', name: '参观' }
+  ]
+
+  // 按分类分组渲染：加粗组标题 + 共 x 篇 + 该组文章
+  function grouped(posts) {
+    var html = ''
+    var seen = {}
+
+    GROUPS.forEach(function (g) {
+      var list = posts.filter(function (p) { return p.category === g.key })
+      if (!list.length) return
+      seen[g.key] = true
+      html += '<h3 class="cms-group-title">' + esc(g.name) +
+              '<span class="cms-group-count">共 ' + list.length + ' 篇</span></h3>'
+      html += list.map(function (p) { return card(p, false) }).join('')
+    })
+
+    // 兜底：未知分类也要显示
+    var others = posts.filter(function (p) { return !seen[p.category] })
+    if (others.length) {
+      html += '<h3 class="cms-group-title">其他' +
+              '<span class="cms-group-count">共 ' + others.length + ' 篇</span></h3>'
+      html += others.map(function (p) { return card(p, false) }).join('')
+    }
+    return html
+  }
+
   // 取标题第一个「字」：汉字 / 字母 / 数字，跳过空格、标点和符号
   function firstChar(s) {
     var m = String(s || '').match(/[\u4e00-\u9fa5a-zA-Z0-9]/)
     return m ? m[0] : '·'
   }
 
-  function card(p) {
+  function card(p, showCat) {
     var href = base + '/post/' + encodeURIComponent(p.slug)
     var cover = p.cover
       ? '<img class="cover" src="' + esc(p.cover) + '" alt="' + esc(p.title) + '">'
@@ -200,7 +278,7 @@
         '<div class="body">' +
           '<h3>' + esc(p.title) + '</h3>' +
           '<div class="meta">' + fmtDate(p.created_at) +
-            (cat ? '' : ' · ' + esc(CAT_NAME[p.category] || p.category)) +
+            (showCat ? ' · ' + esc(CAT_NAME[p.category] || p.category) : '') +
           '</div>' +
           (p.summary ? '<p>' + esc(p.summary) + '</p>' : '') +
         '</div>' +
