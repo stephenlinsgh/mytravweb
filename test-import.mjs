@@ -53,7 +53,19 @@ const DB = {
         if (/FROM posts/i.test(sql)) {
           let rows = store.slice()
           if (/WHERE slug=\?/i.test(sql)) rows = rows.filter((p) => p.slug === args[0])
-          if (/WHERE category=\?/i.test(sql)) rows = rows.filter((p) => p.category === args[0])
+          if (/category=\?/i.test(sql)) {
+            const cat = args.find((a) => typeof a === 'string' && !a.startsWith('%'))
+            if (cat) rows = rows.filter((p) => p.category === cat)
+          }
+          if (/LIKE \?/i.test(sql)) {
+            const like = args.find((a) => typeof a === 'string' && a.startsWith('%'))
+            const kw = like ? like.slice(1, -1) : ''
+            rows = rows.filter((p) =>
+              (p.title || '').includes(kw) ||
+              (p.summary || '').includes(kw) ||
+              (p.content || '').includes(kw)
+            )
+          }
           rows.sort((a, b) => b.created_at - a.created_at)
           return { results: rows }
         }
@@ -162,6 +174,34 @@ async function main() {
   }, env)
   check('再次导入清空旧封面', !bj.cover, 'cover=' + bj.cover)
   check('正文修改未被覆盖', bj.content === '用户自己改过的正文', bj.content)
+
+  console.log('=== 10. 关键词搜索 ===')
+  r = await app.request('/api/posts?q=' + encodeURIComponent('宁波'), { headers: { cookie } }, env)
+  const sq = await r.json()
+  check('搜「宁波」有结果', (sq.posts || []).length >= 1, 'len=' + (sq.posts || []).length)
+  check('结果确实含关键词', (sq.posts || []).every((p) => (p.title + p.summary + p.content).includes('宁波')))
+
+  r = await app.request('/api/posts?q=' + encodeURIComponent('绝不存在xyz'), { headers: { cookie } }, env)
+  const sq2 = await r.json()
+  check('搜不到时返回空', (sq2.posts || []).length === 0, 'len=' + (sq2.posts || []).length)
+
+  r = await app.request('/api/posts?category=travel&q=' + encodeURIComponent('宁波'), { headers: { cookie } }, env)
+  const sq3 = await r.json()
+  check('分类 + 关键词可叠加', (sq3.posts || []).length >= 1 && (sq3.posts || []).every((p) => p.category === 'travel'))
+
+  r = await app.request('/api/posts?q=' + encodeURIComponent('宁波'), {}, env)
+  check('搜索接口需登录', r.status === 401, 'status=' + r.status)
+
+  console.log('=== 11. 无封面时取标题首字 ===')
+  function firstChar(s) {
+    var m = String(s || '').match(/[\u4e00-\u9fa5a-zA-Z0-9]/)
+    return m ? m[0] : '·'
+  }
+  check('普通中文标题', firstChar('京城夏日') === '京', firstChar('京城夏日'))
+  check('跳过书名号', firstChar('《眼力大挑战》') === '眼', firstChar('《眼力大挑战》'))
+  check('跳过引号空格', firstChar('  「测试」') === '测', firstChar('  「测试」'))
+  check('英文数字标题', firstChar('A320 体验') === 'A', firstChar('A320 体验'))
+  check('纯符号兜底', firstChar('!!!') === '·', firstChar('!!!'))
 
   console.log('')
   console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')

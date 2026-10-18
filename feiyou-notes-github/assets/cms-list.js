@@ -84,11 +84,17 @@
     visit: '参观'
   }
 
+  // 取标题第一个「字」：汉字 / 字母 / 数字，跳过空格、标点和符号
+  function firstChar(s) {
+    var m = String(s || '').match(/[\u4e00-\u9fa5a-zA-Z0-9]/)
+    return m ? m[0] : '·'
+  }
+
   function card(p) {
     var href = base + '/post/' + encodeURIComponent(p.slug)
     var cover = p.cover
       ? '<img class="cover" src="' + esc(p.cover) + '" alt="' + esc(p.title) + '">'
-      : ''
+      : '<div class="cover cover-initial" aria-hidden="true">' + esc(firstChar(p.title)) + '</div>'
     return (
       '<a class="card trip-card" href="' + href + '">' +
         cover +

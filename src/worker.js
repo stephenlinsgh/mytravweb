@@ -178,9 +178,24 @@ const ADMIN_PAGE = `<!doctype html>
   .EasyMDEContainer .editor-toolbar i.separator{margin:0 6px}
   .EasyMDEContainer .editor-toolbar button.mde-video{font-size:0}
   .EasyMDEContainer .editor-toolbar button.mde-video::after{content:'视频';font-size:13px}
+  /* 顶部加载进度条 */
+  .progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;
+       pointer-events:none;opacity:0;transition:opacity .25s}
+  .progress.on{opacity:1}
+  .progress i{display:block;height:100%;width:0;
+       background:linear-gradient(90deg,#4c8df6,#15457a);
+       box-shadow:0 0 8px rgba(21,69,122,.45);transition:width .3s ease}
+  /* 文章搜索 */
+  .search{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .search input{max-width:360px}
+  .search .clear{background:#fff;border:1px solid var(--line);border-radius:8px;
+       padding:8px 13px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
+  .search .clear:hover{border-color:var(--blue);color:var(--blue)}
 </style>
 </head>
 <body>
+
+<div class="progress" id="progress"><i></i></div>
 
 <div class="top"><div class="top-in">
   <h1>写作后台</h1>
@@ -254,6 +269,10 @@ const ADMIN_PAGE = `<!doctype html>
         <button class="btn mini" id="importBtn"
                 style="background:#fff;color:var(--blue);border:1px solid var(--line)">导入原有文章</button>
         <span class="msg" id="importMsg"></span>
+      </div>
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜索标题、摘要或正文…" autocomplete="off">
+        <button class="clear" id="searchClear" type="button">清除</button>
       </div>
       <div class="tabs" id="catTabs">
         <button class="on" data-cat="">全部</button>
@@ -460,18 +479,74 @@ $('catTabs').onclick = (e) => {
   load()
 }
 
+// ---- 顶部加载进度条 ----
+var progressEl = $('progress')
+var progressFill = progressEl.querySelector('i')
+var progressAt = 0
+function progressStart() {
+  progressAt = Date.now()
+  progressEl.classList.add('on')
+  progressFill.style.transition = 'none'
+  progressFill.style.width = '0'
+  void progressFill.offsetWidth
+  progressFill.style.transition = 'width .3s ease'
+  progressFill.style.width = '72%'
+}
+function progressDone() {
+  // 文章少时请求很快，让进度条至少走 320ms，不然一闪就没
+  var wait = Math.max(0, 320 - (Date.now() - progressAt))
+  setTimeout(function () {
+    progressFill.style.width = '100%'
+    setTimeout(function () {
+      progressEl.classList.remove('on')
+      setTimeout(function () {
+        progressFill.style.transition = 'none'
+        progressFill.style.width = '0'
+      }, 260)
+    }, 220)
+  }, wait)
+}
+
+// ---- 关键词搜索：输入停顿 280ms 再查，回车立即查 ----
+var searchTimer = null
+$('searchInput').addEventListener('input', function () {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(load, 280)
+})
+$('searchInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { clearTimeout(searchTimer); load() }
+})
+$('searchClear').onclick = function () {
+  $('searchInput').value = ''
+  load()
+}
+
 async function load() {
+  progressStart()
   $('list').innerHTML = '<div class="empty">加载中…</div>'
+
+  var q = $('searchInput').value.trim()
+  var params = []
+  if (filter) params.push('category=' + encodeURIComponent(filter))
+  if (q) params.push('q=' + encodeURIComponent(q))
+  var url = '/api/posts' + (params.length ? '?' + params.join('&') : '')
+
   // 登录过期时 api() 会抛错，这里接住，别让未捕获异常刷 console
   let d
   try {
-    d = await api('/api/posts' + (filter ? '?category=' + filter : ''))
+    d = await api(url)
   } catch (e) {
     $('list').innerHTML = '<div class="empty">请先登录</div>'
+    progressDone()
     return
   }
   const posts = d.posts || []
-  if (!posts.length) { $('list').innerHTML = '<div class="empty">还没有文章，上面写一篇试试</div>'; return }
+  if (!posts.length) {
+    $('list').innerHTML = '<div class="empty">' +
+      (q ? '没有找到包含「' + esc(q) + '」的文章' : '还没有文章，上面写一篇试试') + '</div>'
+    progressDone()
+    return
+  }
   // 先把每篇文章存进CACHE，onclick 里只传 id。
   // 直接把标题拼进 onclick 会在标题含引号时把 JS 打断。
   const CACHE = {}
@@ -493,6 +568,7 @@ async function load() {
   }).join('')
   CACHE_IDS = CACHE
   $('list').innerHTML = rows
+  progressDone()
 }
 
 function edit(id) {
@@ -609,10 +685,23 @@ app.get('/api/public/post/:slug', async (c) => {
 app.get('/api/posts', requireAuth, async (c) => {
   await ensureSchema(c.env.DB)
   const cat = c.req.query('category')
+  const q = (c.req.query('q') || '').trim()
+
+  const where = []
+  const args = []
+  if (cat) { where.push('category=?'); args.push(cat) }
+  if (q) {
+    // 标题、摘要、正文都参与关键词匹配
+    where.push('(title LIKE ? OR summary LIKE ? OR content LIKE ?)')
+    const like = '%' + q + '%'
+    args.push(like, like, like)
+  }
+
   const sql = `SELECT id,slug,title,category,summary,cover,content,
-                       datetime(created_at/1000,'unixepoch','+8 hours') AS created_date
-                FROM posts ${cat ? 'WHERE category=?' : ''} ORDER BY created_at DESC`
-  const { results } = await c.env.DB.prepare(sql).bind(...(cat ? [cat] : [])).all()
+                      datetime(created_at/1000,'unixepoch','+8 hours') AS created_date
+               FROM posts ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+               ORDER BY created_at DESC`
+  const { results } = await c.env.DB.prepare(sql).bind(...args).all()
   return c.json({ posts: results })
 })
 
