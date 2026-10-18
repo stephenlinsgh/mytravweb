@@ -55,9 +55,23 @@ async function run(withSlot) {
   navInner.insertBefore = (child) => { navInner.inserted = child; return child }
   brand.nextSibling = null
 
+  const parent = {
+    children: [],
+    insertBefore(child) { this.children.push(child); child.parentNode = this; return child },
+    removeChild(child) {
+      this.children = this.children.filter((c) => c !== child)
+      child.parentNode = null
+    }
+  }
+  if (slot) slot.parentNode = parent
+
   const main = el('main')
   main.firstChild = null
-  main.insertBefore = (child) => { main.inserted = child; return child }
+  main.insertBefore = (child) => { main.inserted = child; child.parentNode = main; return child }
+  main.removeChild = (child) => {
+    main.children = (main.children || []).filter((c) => c !== child)
+    child.parentNode = null
+  }
 
   const doc = {
     currentScript: { getAttribute: (k) => (k === 'data-cat' ? 'notes' : '') },
@@ -110,7 +124,7 @@ async function run(withSlot) {
 
   check('搜索时不再带 category（全站）', lastUrl.includes('q=') && !lastUrl.includes('category='), lastUrl)
 
-  const out = withSlot ? slot : main.inserted
+  const out = withSlot ? slot : created.find((e) => e.className === 'grid cms-results')
   check('搜索结果有结果容器', !!out)
 
   const html = out.innerHTML
@@ -121,6 +135,21 @@ async function run(withSlot) {
   check('分组顺序：旅行在笔记前', html.indexOf('旅行') < html.indexOf('笔记'))
   check('分组顺序：笔记在运动前', html.indexOf('笔记') < html.indexOf('运动'))
   check('没有空状态提示', !html.includes('还没有文章'))
+
+  // 搜索模式：收起原板块 + 返回按钮
+  check('进入搜索模式（收起原板块）', main.classList.contains('cms-searching'))
+  const backBox = created.find((e) => e.className === 'cms-back')
+  check('有返回按钮容器', !!backBox)
+  const backBtn = created.find((e) => e.tagName === 'button' && e.textContent === '← 返回上一页')
+  check('返回按钮文案正确', !!backBtn)
+
+  if (backBtn) {
+    backBtn.onclick()
+    await new Promise((r) => setTimeout(r, 90))
+    check('点返回后退出搜索模式', !main.classList.contains('cms-searching'))
+    check('搜索框已清空', input.value === '', input.value)
+    check('结果区不再有分组标题', !(withSlot ? slot.innerHTML : (main.inserted && main.inserted.innerHTML) || '').includes('cms-group-title'))
+  }
 }
 
 await run(true)

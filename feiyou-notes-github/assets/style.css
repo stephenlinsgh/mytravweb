@@ -146,6 +146,18 @@ img{max-width:100%;display:block}
 .cms-group-count{
   font-size:13px;font-weight:500;color:var(--muted);
 }
+
+/* 搜索模式：收起页面原有板块，只显示结果和返回按钮 */
+main.cms-searching > *:not([data-cms-slot]):not(.cms-results):not(.cms-back){
+  display:none !important;
+}
+.cms-back{margin:26px 0 48px;text-align:center}
+.cms-back button{
+  background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:11px 26px;font-size:15px;color:var(--blue);
+  cursor:pointer;font-family:inherit;transition:.15s;
+}
+.cms-back button:hover{border-color:var(--blue);background:var(--sky)}
 @media(max-width:820px){
   .nav-inner{flex-wrap:wrap}
   .nav-search{flex:1 1 100%;order:3;max-width:none;margin:8px 0 0}

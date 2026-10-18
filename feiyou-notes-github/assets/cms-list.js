@@ -119,17 +119,54 @@
       return resultBox
     }
 
+    /* 搜索模式 ------------------------------------------------------------
+       一搜索就隐藏页面原有板块，只显示结果；结果下面给一个「返回上一页」。
+       点它清空关键词，恢复原来的栏目内容。
+    ------------------------------------------------------------------- */
+    var mainEl = document.querySelector('main')
+    var backBox = null
+
+    function setSearchMode(on) {
+      if (mainEl) mainEl.classList.toggle('cms-searching', on)
+
+      if (on) {
+        if (!backBox) {
+          backBox = document.createElement('div')
+          backBox.className = 'cms-back'
+          var btn = document.createElement('button')
+          btn.type = 'button'
+          btn.textContent = '← 返回上一页'
+          btn.addEventListener('click', function () {
+            input.value = ''
+            box.classList.remove('has-value')
+            load('')
+            if (typeof window !== 'undefined' && window.scrollTo) {
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          })
+          backBox.appendChild(btn)
+        }
+        var out = target()
+        if (backBox.parentNode) backBox.parentNode.removeChild(backBox)
+        out.parentNode.insertBefore(backBox, out.nextSibling)
+      } else if (backBox && backBox.parentNode) {
+        backBox.parentNode.removeChild(backBox)
+      }
+    }
+
     var timer = null
     var seq = 0
 
     function load(kw) {
-      // 没有 CMS 槽位、也没输入关键词：什么都不做（首页平时不显示文章列表）
+      // 没有 CMS 槽位、也没输入关键词：回到普通页面（首页平时不显示文章列表）
       if (!slot && !kw) {
+        setSearchMode(false)
         if (resultBox) resultBox.innerHTML = ''
         return
       }
 
       var my = ++seq
+      setSearchMode(!!kw)
       progressStart()
 
       var params = []
