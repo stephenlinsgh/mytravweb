@@ -340,8 +340,8 @@ function setBody(v) { if (mde) mde.value(v || ''); else $('content').value = v |
 // ---- 正文区拖拽上传：图片、视频直接拖进编辑器 ----
 function handleEditorFile(f) {
   var type = f.type || ''
-  var isImage = /^image\//.test(type)
-  var isVideo = /^video\//.test(type)
+  var isImage = type.indexOf('image/') === 0
+  var isVideo = type.indexOf('video/') === 0
   if (!isImage && !isVideo) { alert('只支持图片或视频文件'); return }
   uploadFile(f).then(function (u) {
     if (isVideo) insertAtCursor(mde, '![视频](' + u + ')')
