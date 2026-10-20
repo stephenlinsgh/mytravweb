@@ -301,6 +301,21 @@ function insertAtCursor(ed, text) {
   cm.replaceSelection(text)
   cm.focus()
 }
+function insertImage(ed) {
+  var inp = document.createElement('input')
+  inp.type = 'file'
+  inp.accept = 'image/jpeg,image/png,image/webp,image/gif'
+  inp.onchange = function (e) {
+    var f = e.target.files[0]
+    if (!f) return
+    uploadFile(f).then(function (u) {
+      insertAtCursor(ed, '![' + (f.name || '图片') + '](' + u + ')')
+    }).catch(function (err) {
+      alert('上传失败：' + err.message)
+    })
+  }
+  inp.click()
+}
 function insertVideo(ed) {
   var inp = document.createElement('input')
   inp.type = 'file'
@@ -326,12 +341,11 @@ if (typeof EasyMDE !== 'undefined') {
     status: false,
     minHeight: '320px',
     placeholder: '支持 Markdown：## 标题、**加粗**、- 列表、> 引用、![图片]',
-    uploadImage: true,
-    imageAccept: 'image/jpeg,image/png,image/webp,image/gif',
-    imageUploadFunction: function (file, onSuccess, onError) {
-      uploadFile(file).then(onSuccess).catch(function (e) { onError(e.message || '上传失败') })
-    },
-    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link','image',{ name:'video', action:insertVideo, className:'mde-video', title:'上传视频（也可以直接拖进正文）' },'table','code','quote','|','preview','side-by-side','|','guide']
+    // 不开 EasyMDE 自带的 uploadImage：
+    //   1. 它的图片按钮只会插入 ![](https://) 占位符，不走上传
+    //   2. 它会自己绑一套 drop/paste，和下面的自定义拖拽重复上传
+    // 图片/视频统一用自定义按钮 + 拖拽 + 粘贴。
+    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link',{ name:'image', action:insertImage, className:'fa fa-image', title:'上传图片（也可以直接拖进正文）' },{ name:'video', action:insertVideo, className:'mde-video', title:'上传视频（也可以直接拖进正文）' },'table','code','quote','|','preview','side-by-side','|','guide']
   })
 }
 function getBody() { return mde ? mde.value() : $('content').value }
@@ -370,6 +384,13 @@ if (mde) {
     if (!files || !files.length) return // 普通文字拖拽交给编辑器自己处理
     e.preventDefault()
     cmEl.classList.remove('drag-over')
+    for (var i = 0; i < files.length; i++) handleEditorFile(files[i])
+  })
+  // 截图后直接 Ctrl+V 也能上传
+  cmEl.addEventListener('paste', function (e) {
+    var files = e.clipboardData && e.clipboardData.files
+    if (!files || !files.length) return
+    e.preventDefault()
     for (var i = 0; i < files.length; i++) handleEditorFile(files[i])
   })
 }
