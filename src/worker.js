@@ -174,6 +174,7 @@ const ADMIN_PAGE = `<!doctype html>
   /* EasyMDE 编辑器微调，贴合后台配色 */
   .EasyMDEContainer .editor-toolbar{border-color:var(--line);border-radius:10px 10px 0 0}
   .EasyMDEContainer .CodeMirror{border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;font-size:15px;line-height:1.7}
+  .EasyMDEContainer .CodeMirror.drag-over{outline:2px dashed var(--blue);outline-offset:-4px;background:var(--sky-soft)}
   .EasyMDEContainer .editor-toolbar button{border-radius:5px}
   .EasyMDEContainer .editor-toolbar i.separator{margin:0 6px}
   .EasyMDEContainer .editor-toolbar button.mde-video{font-size:0}
@@ -252,9 +253,10 @@ const ADMIN_PAGE = `<!doctype html>
                   style="background:#fff;color:var(--red);border:1px solid var(--line);margin-top:6px">移除封面</button>
         </div>
       </div>
-      <input id="cover" placeholder="也可以直接粘贴图片外链 https://...">
+      <input type="hidden" id="cover">
       <label>正文 *</label>
       <textarea id="content" placeholder="支持 Markdown 语法：&#10;&#10;## 二级标题&#10;- 列表项&#10;**加粗**&#10;[链接](https://...)&#10;> 引用"></textarea>
+      <div class="hint" style="margin:8px 0 0">图片和视频可以直接拖进编辑区上传，也可以用工具栏的图片/视频按钮选文件。</div>
       <div class="acts">
         <button class="btn" id="saveBtn">发布文章</button>
         <button class="btn ghost" id="resetBtn" style="background:#fff;border-color:var(--line);color:var(--fg)">清空重写</button>
@@ -300,17 +302,17 @@ function insertAtCursor(ed, text) {
   cm.focus()
 }
 function insertVideo(ed) {
-  var url = prompt('粘贴视频链接（YouTube / Bilibili / .mp4 网址），留空则上传本地视频')
-  if (url === null) return
-  if (url.trim()) { insertAtCursor(ed, '![video](' + url.trim() + ')'); return }
   var inp = document.createElement('input')
   inp.type = 'file'
   inp.accept = 'video/mp4,video/webm,video/ogg'
   inp.onchange = function (e) {
     var f = e.target.files[0]
     if (!f) return
-    uploadFile(f).then(function (u) { insertAtCursor(ed, '![video](' + u + ')') })
-      .catch(function (err) { alert('上传失败：' + err.message) })
+    uploadFile(f).then(function (u) {
+      insertAtCursor(ed, '![视频](' + u + ')')
+    }).catch(function (err) {
+      alert('上传失败：' + err.message)
+    })
   }
   inp.click()
 }
@@ -329,11 +331,48 @@ if (typeof EasyMDE !== 'undefined') {
     imageUploadFunction: function (file, onSuccess, onError) {
       uploadFile(file).then(onSuccess).catch(function (e) { onError(e.message || '上传失败') })
     },
-    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link','image',{ name:'video', action:insertVideo, className:'mde-video', title:'插入视频（链接或上传）' },'table','code','quote','|','preview','side-by-side','|','guide']
+    toolbar: ['bold','italic','heading','|','unordered-list','ordered-list','|','link','image',{ name:'video', action:insertVideo, className:'mde-video', title:'上传视频（也可以直接拖进正文）' },'table','code','quote','|','preview','side-by-side','|','guide']
   })
 }
 function getBody() { return mde ? mde.value() : $('content').value }
 function setBody(v) { if (mde) mde.value(v || ''); else $('content').value = v || '' }
+
+// ---- 正文区拖拽上传：图片、视频直接拖进编辑器 ----
+function handleEditorFile(f) {
+  var type = f.type || ''
+  var isImage = /^image\//.test(type)
+  var isVideo = /^video\//.test(type)
+  if (!isImage && !isVideo) { alert('只支持图片或视频文件'); return }
+  uploadFile(f).then(function (u) {
+    if (isVideo) insertAtCursor(mde, '![视频](' + u + ')')
+    else insertAtCursor(mde, '![' + (f.name || '图片') + '](' + u + ')')
+  }).catch(function (err) {
+    alert((isVideo ? '视频' : '图片') + '上传失败：' + err.message)
+  })
+}
+
+if (mde) {
+  var cmEl = mde.codemirror.getWrapperElement()
+  ;['dragover', 'dragenter'].forEach(function (ev) {
+    cmEl.addEventListener(ev, function (e) {
+      var dt = e.dataTransfer
+      if (!dt || !dt.types || dt.types.indexOf('Files') < 0) return
+      e.preventDefault()
+      dt.dropEffect = 'copy'
+      cmEl.classList.add('drag-over')
+    })
+  })
+  ;['dragleave', 'dragend'].forEach(function (ev) {
+    cmEl.addEventListener(ev, function () { cmEl.classList.remove('drag-over') })
+  })
+  cmEl.addEventListener('drop', function (e) {
+    var files = e.dataTransfer && e.dataTransfer.files
+    if (!files || !files.length) return // 普通文字拖拽交给编辑器自己处理
+    e.preventDefault()
+    cmEl.classList.remove('drag-over')
+    for (var i = 0; i < files.length; i++) handleEditorFile(files[i])
+  })
+}
 
 // ---- 封面上传（拖拽 / 点击，存到 R2，返回 /img/...）----
 function setCover(url) {
@@ -368,7 +407,6 @@ function handleCover(f) {
     .finally(function () { setTimeout(function () { tip.textContent = '把图片拖到这里，或点击选择文件上传' }, 2500) })
 }
 $('coverClear').onclick = function () { setCover('') }
-$('cover').addEventListener('input', function () { setCover($('cover').value.trim()) })
 
 // 后台页面里的 HTML 片段是拼出来的，拼之前必须转义，
 // 否则文章标题里带尖括号就会把页面结构搞坏
