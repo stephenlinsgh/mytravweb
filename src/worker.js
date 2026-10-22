@@ -724,6 +724,8 @@ app.get('/api/me', async (c) =>
 
 // 公开接口：前台页面调这个拿文章列表，不需要登录
 app.get('/api/public/posts', async (c) => {
+  // 后台改完要立刻能看到，不能吃缓存
+  c.header('Cache-Control', 'no-store')
   await ensureSchema(c.env.DB)
   const cat = c.req.query('category')
   const q = (c.req.query('q') || '').trim()
@@ -746,6 +748,7 @@ app.get('/api/public/posts', async (c) => {
 })
 
 app.get('/api/public/post/:slug', async (c) => {
+  c.header('Cache-Control', 'no-store')
   const { results } = await c.env.DB.prepare('SELECT * FROM posts WHERE slug=?')
     .bind(c.req.param('slug')).all()
   if (!results.length) return c.json({ error: '文章不存在' }, 404)
@@ -754,6 +757,7 @@ app.get('/api/public/post/:slug', async (c) => {
 
 // 后台接口：需要登录
 app.get('/api/posts', requireAuth, async (c) => {
+  c.header('Cache-Control', 'no-store')
   await ensureSchema(c.env.DB)
   const cat = c.req.query('category')
   const q = (c.req.query('q') || '').trim()
@@ -880,6 +884,8 @@ app.post('/api/admin/import', requireAuth, async (c) => {
    ========================================================================== */
 
 app.get('/post/:slug', async (c) => {
+  // 文章页随时可能被编辑，别让浏览器留旧版本
+  c.header('Cache-Control', 'no-store')
   const { results } = await c.env.DB.prepare('SELECT * FROM posts WHERE slug=?')
     .bind(c.req.param('slug')).all()
   if (!results.length) {

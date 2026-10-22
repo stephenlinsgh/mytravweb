@@ -177,7 +177,7 @@
       }
       var url = '/api/public/posts' + (params.length ? '?' + params.join('&') : '')
 
-      fetch(url, { headers: { Accept: 'application/json' } })
+      fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
         .then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status)
           return r.json()
