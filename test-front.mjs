@@ -35,7 +35,7 @@ function el(tag) {
 const posts = [
   { slug: 'a', title: '京城夏日', category: 'travel', summary: '北京', cover: '', created_at: 1000 },
   { slug: 'b', title: '风雨里的宁波', category: 'travel', summary: '宁波', cover: '', created_at: 2000 },
-  { slug: 'c', title: '眼力大挑战', category: 'notes', summary: '航空', cover: '', created_at: 3000 },
+  { slug: 'note-plane-spotting', title: '眼力大挑战', category: 'notes', summary: '航空', cover: '', created_at: 3000 },
   { slug: 'd', title: '跑步记录', category: 'sports', summary: '运动', cover: '', created_at: 4000 }
 ]
 
@@ -135,6 +135,8 @@ async function run(withSlot) {
   check('分组顺序：旅行在笔记前', html.indexOf('旅行') < html.indexOf('笔记'))
   check('分组顺序：笔记在运动前', html.indexOf('笔记') < html.indexOf('运动'))
   check('没有空状态提示', !html.includes('还没有文章'))
+  check('互动游戏卡片跳原页面', html.includes('href="/note-plane-spotting.html"'), html.slice(0, 200))
+  check('普通文章仍进 /post/', html.includes('href="/post/a"'))
 
   // 搜索模式：收起原板块 + 返回按钮
   check('进入搜索模式（收起原板块）', main.classList.contains('cms-searching'))

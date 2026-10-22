@@ -304,8 +304,14 @@
     return m ? m[0] : '·'
   }
 
+  // 个别文章本身是互动页面（3D 游戏等），卡片直接跳原静态页，
+  // 不进数据库文章页，否则游戏本体就没了。
+  var LEGACY_PAGES = {
+    'note-plane-spotting': '/note-plane-spotting.html'
+  }
+
   function card(p, showCat) {
-    var href = base + '/post/' + encodeURIComponent(p.slug)
+    var href = LEGACY_PAGES[p.slug] || (base + '/post/' + encodeURIComponent(p.slug))
     var cover = p.cover
       ? '<img class="cover" src="' + esc(p.cover) + '" alt="' + esc(p.title) + '">'
       : '<div class="cover cover-initial" aria-hidden="true">' + esc(firstChar(p.title)) + '</div>'
