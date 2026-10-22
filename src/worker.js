@@ -75,6 +75,9 @@ async function ensureSchema(db) {
   if (schemaReady) return
   await db.exec('CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT \'notes\', summary TEXT NOT NULL DEFAULT \'\', content TEXT NOT NULL DEFAULT \'\', cover TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)')
   await db.exec('CREATE INDEX IF NOT EXISTS idx_posts_cat ON posts(category, created_at DESC)')
+  // 2026-10-22：这篇改过标题，把库里的旧值迁过来。
+  // 只在标题还是旧文案时才改，用户手动改过的不覆盖；重复执行也安全。
+  await db.exec("UPDATE posts SET title='如何区分波音、空客和商飞的客机' WHERE slug='note-plane-spotting' AND title='眼力大挑战：认出 A320、B737 和 C919'")
   schemaReady = true
 }
 
