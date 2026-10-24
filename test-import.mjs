@@ -16,9 +16,24 @@ const DB = {
     const api = {
       bind(...a) { args = a; return api },
       async first() {
+        if (/SELECT id, cover FROM posts WHERE slug=\?/i.test(sql)) {
+          const s = store.find((p) => p.slug === args[0])
+          return s ? { id: s.id, cover: s.cover } : null
+        }
         if (/SELECT id FROM posts WHERE slug=\?/i.test(sql)) {
           const s = store.find((p) => p.slug === args[0])
           return s ? { id: s.id } : null
+        }
+        if (/SELECT cover, content FROM posts WHERE id=\?/i.test(sql)) {
+          const s = store.find((p) => p.id === Number(args[0]))
+          return s ? { cover: s.cover, content: s.content } : null
+        }
+        if (/SELECT COUNT\(\*\) AS n FROM posts/i.test(sql)) {
+          const url = args[0]
+          const n = store.filter(
+            (p) => p.cover === url || (p.content || '').includes(url)
+          ).length
+          return { n }
         }
         return null
       },
@@ -219,6 +234,45 @@ async function main() {
 
   r = await app.request('/api/public/posts?q=' + encodeURIComponent('宁波'), {}, env)
   check('前台搜索无需登录', r.status === 200, 'status=' + r.status)
+
+  console.log('=== 13. 换封面时清理 R2 旧图 ===')
+  const deleted = []
+  env.MEDIA = {
+    async delete(key) { deleted.push(key) },
+    async put() {}
+  }
+
+  const bj2 = store.find((p) => p.slug === 'note-beijing')
+  bj2.cover = '/img/covers/old-cover.jpg'
+
+  r = await app.request('/api/posts/' + bj2.id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      title: bj2.title, content: bj2.content, category: bj2.category,
+      summary: '', cover: ''
+    })
+  }, env)
+  check('更新接口返回 ok', r.status === 200, 'status=' + r.status)
+  check('旧封面已从 R2 删除', deleted.indexOf('covers/old-cover.jpg') >= 0, deleted.join(','))
+  check('数据库里封面已清空', !store.find((p) => p.slug === 'note-beijing').cover)
+
+  // 同一张图还被别的文章正文引用时，必须保留
+  deleted.length = 0
+  const nb = store.find((p) => p.slug === 'note-ningbo')
+  nb.cover = '/img/covers/shared.jpg'
+  const bj3 = store.find((p) => p.slug === 'note-beijing')
+  bj3.content = bj3.content + '\n\n![图](/img/covers/shared.jpg)'
+
+  r = await app.request('/api/posts/' + nb.id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      title: nb.title, content: nb.content, category: nb.category,
+      summary: '', cover: ''
+    })
+  }, env)
+  check('仍被其它文章引用的图不删', deleted.indexOf('covers/shared.jpg') < 0, deleted.join(','))
 
   console.log('')
   console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')

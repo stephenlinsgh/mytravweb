@@ -822,12 +822,27 @@ app.put('/api/posts/:id', requireAuth, async (c) => {
 
   const id = Number(c.req.param('id'))
   const category = CATEGORIES[b.category] ? b.category : 'notes'
+  const newCover = (b.cover || '').trim() || null
+
+  // 改动前先记下旧封面和旧正文，用来找出这次被移除的图片
+  const old = await c.env.DB.prepare('SELECT cover, content FROM posts WHERE id=?').bind(id).first()
+
   try {
     const r = await c.env.DB.prepare(
       `UPDATE posts SET title=?, category=?, summary=?, content=?, cover=?, updated_at=?
        WHERE id=?`
-    ).bind(title, category, (b.summary || '').trim(), content, (b.cover || '').trim() || null, Date.now(), id).run()
+    ).bind(title, category, (b.summary || '').trim(), content, newCover, Date.now(), id).run()
     if (!r.meta.changes) return c.json({ error: '找不到这篇文章' }, 404)
+
+    // 换封面、或正文里删掉图片后，把不再被任何文章引用的文件从 R2 清掉
+    if (old) {
+      const before = extractMediaUrls((old.cover || '') + '\n' + (old.content || ''))
+      const after = extractMediaUrls((newCover || '') + '\n' + content)
+      for (const url of before) {
+        if (after.indexOf(url) < 0) await deleteMediaIfUnused(c.env, url)
+      }
+    }
+
     return c.json({ ok: true })
   } catch (e) {
     return c.json({ error: '更新失败：' + e.message }, 500)
@@ -836,7 +851,15 @@ app.put('/api/posts/:id', requireAuth, async (c) => {
 
 app.delete('/api/posts/:id', requireAuth, async (c) => {
   const id = Number(c.req.param('id'))
+  // 删文章前先记下它引用了哪些图片
+  const old = await c.env.DB.prepare('SELECT cover, content FROM posts WHERE id=?').bind(id).first()
   await c.env.DB.prepare('DELETE FROM posts WHERE id=?').bind(id).run()
+
+  // 文章没了，它独占的图片也一起删掉（还被别处引用则保留）
+  if (old) {
+    const urls = extractMediaUrls((old.cover || '') + '\n' + (old.content || ''))
+    for (const url of urls) await deleteMediaIfUnused(c.env, url)
+  }
   return c.json({ ok: true })
 })
 
@@ -851,13 +874,18 @@ app.post('/api/admin/import', requireAuth, async (c) => {
   let skipped = 0
   const items = []
   for (const p of importedPosts) {
-    const dup = await c.env.DB.prepare('SELECT id FROM posts WHERE slug=?').bind(p.slug).first()
+    const dup = await c.env.DB.prepare('SELECT id, cover FROM posts WHERE slug=?').bind(p.slug).first()
     if (dup) {
+      const oldCover = dup.cover
       // 文章已存在：只同步封面。
       // 之前导入时把「正文第一张图」误设成了封面，现在导入数据里封面为空，
       // 这一步会把旧值清掉；标题和正文保持后台里改过的样子，不覆盖。
       await c.env.DB.prepare('UPDATE posts SET cover=? WHERE id=?')
         .bind(p.cover || null, dup.id).run()
+      // 旧封面不再用了，直接从 R2 删掉
+      if (oldCover && oldCover !== (p.cover || null)) {
+        await deleteMediaIfUnused(c.env, oldCover)
+      }
       skipped++
       items.push(p.slug + ':skipped')
       continue
@@ -956,9 +984,44 @@ app.get('/post/:slug', async (c) => {
    /img/*：按 key 从 R2 读图，长期缓存（图片地址一旦生成就不变）。
    ========================================================================== */
 
+/** 从文本里提取所有 /img/... 引用（去重） */
+function extractMediaUrls(text) {
+  var s = String(text || '')
+  var out = []
+  var re = /\/img\/[\w./-]+/g
+  var m
+  while ((m = re.exec(s))) {
+    if (out.indexOf(m[0]) < 0) out.push(m[0])
+  }
+  return out
+}
+
+/**
+ * 这张图如果已经没有任何文章在用（封面或正文），就从 R2 删掉。
+ * 先查引用再删，避免同一张图被别的文章/正文复用时误删。
+ */
+async function deleteMediaIfUnused(env, url) {
+  if (!url || !env.MEDIA) return false
+  var m = String(url).match(/^\/img\/([\w./-]+)$/)
+  if (!m) return false
+  var key = m[1]
+  if (key.indexOf('..') >= 0) return false
+
+  var row = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM posts WHERE cover=? OR content LIKE ?'
+  ).bind(url, '%' + url + '%').first()
+  if (row && row.n > 0) return false
+
+  try {
+    await env.MEDIA.delete(key)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
 // 图片与视频都走同一个上传接口，存到 R2
-const UPLOAD_TYPES = {
-  'image/jpeg': { ext: 'jpg',  max: 5 * 1024 * 1024,  dir: 'covers' },
+const UPLOAD_TYPES = {  'image/jpeg': { ext: 'jpg',  max: 5 * 1024 * 1024,  dir: 'covers' },
   'image/png':  { ext: 'png',  max: 5 * 1024 * 1024,  dir: 'covers' },
   'image/webp': { ext: 'webp', max: 5 * 1024 * 1024,  dir: 'covers' },
   'image/gif':  { ext: 'gif',  max: 5 * 1024 * 1024,  dir: 'covers' },
