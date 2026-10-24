@@ -82,6 +82,10 @@ async function run(withSlot) {
       if (sel === 'main') return main
       return null
     },
+    querySelectorAll() {
+      // 测试里不做静态卡片同步，返回空集合即可
+      return []
+    },
     createElement(tag) {
       const e = el(tag)
       created.push(e)
@@ -154,9 +158,52 @@ async function run(withSlot) {
   }
 }
 
+async function testStaticSync() {
+  console.log('=== 首页手写卡片：封面跟随后台 ===')
+  const created = []
+
+  // 模拟一张已经带封面的静态卡片
+  const cardImg = el('img')
+  cardImg.className = 'cover'
+  cardImg.attrs = { src: './assets/travels/beijing-cover.jpg' }
+  cardImg.getAttribute = (k) => cardImg.attrs[k]
+  cardImg.setAttribute = (k, v) => { cardImg.attrs[k] = v }
+
+  let replaced = null
+  cardImg.parentNode = {
+    replaceChild(newNode) { replaced = newNode }
+  }
+
+  const card = el('a')
+  card.attrs = { href: '/post/note-beijing' }
+  card.getAttribute = (k) => card.attrs[k]
+  card.querySelector = (sel) => (sel === 'img.cover' ? cardImg : null)
+
+  const doc = {
+    currentScript: { getAttribute: () => '' },
+    readyState: 'complete',
+    querySelector: () => null,
+    querySelectorAll: () => [card],
+    createElement(tag) { const e = el(tag); created.push(e); return e },
+    body: { appendChild() {} }
+  }
+
+  const posts = [
+    { slug: 'note-beijing', title: '京城夏日', category: 'travel', summary: '', cover: '', created_at: 1 }
+  ]
+  const fn = new Function('document', 'fetch', 'setTimeout', 'clearTimeout', code)
+  fn(doc, async () => ({ ok: true, json: async () => ({ posts }) }), setTimeout, clearTimeout)
+  await new Promise((r) => setTimeout(r, 80))
+
+  check('后台封面为空 → 静态卡片换成首字', !!replaced && replaced.className === 'cover cover-initial')
+  check('首字取标题第一个汉字', !!replaced && replaced.textContent === '京', replaced && replaced.textContent)
+}
+
 await run(true)
 console.log('')
 await run(false)
+console.log('')
+await testStaticSync()
 
 console.log('')
 console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')

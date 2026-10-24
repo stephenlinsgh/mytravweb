@@ -238,6 +238,9 @@
 
     // 有槽位的页面才需要首次拉列表；首页没有槽位，等用户搜索
     if (slot) load('')
+
+    // 顺手把手写静态卡片的封面同步成后台数据
+    syncStaticCovers()
   }
 
   function esc(s) {
@@ -316,7 +319,7 @@
       ? '<img class="cover" src="' + esc(p.cover) + '" alt="' + esc(p.title) + '">'
       : '<div class="cover cover-initial" aria-hidden="true">' + esc(firstChar(p.title)) + '</div>'
     return (
-      '<a class="card trip-card" href="' + href + '">' +
+      '<a class="card trip-card" data-cms="1" href="' + href + '">' +
         cover +
         '<div class="body">' +
           '<h3>' + esc(p.title) + '</h3>' +
@@ -327,5 +330,51 @@
         '</div>' +
       '</a>'
     )
+  }
+
+  /* 首页等页面里手写的静态卡片，封面是直接写在 HTML 里的，
+     后台改了封面它们不会跟着变。这里按 slug 拉一次数据把封面同步过来：
+     有封面就换图，没封面就换成标题首字。 */
+  function syncStaticCovers() {
+    var cards = document.querySelectorAll('a.trip-card[href]:not([data-cms])')
+    if (!cards.length) return
+
+    fetch('/api/public/posts', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null })
+      .then(function (d) {
+        if (!d || !d.posts) return
+        var map = {}
+        for (var i = 0; i < d.posts.length; i++) map[d.posts[i].slug] = d.posts[i]
+
+        for (var j = 0; j < cards.length; j++) {
+          var a = cards[j]
+          var m = (a.getAttribute('href') || '').match(/\/post\/([^/?#]+)/)
+          if (!m) continue
+          var p = map[decodeURIComponent(m[1])]
+          if (!p) continue
+
+          var img = a.querySelector('img.cover')
+          var ph = a.querySelector('.cover-initial')
+
+          if (p.cover) {
+            if (img) {
+              if (img.getAttribute('src') !== p.cover) img.setAttribute('src', p.cover)
+            } else if (ph) {
+              var ni = document.createElement('img')
+              ni.className = 'cover'
+              ni.setAttribute('src', p.cover)
+              ni.setAttribute('alt', p.title || '')
+              ph.parentNode.replaceChild(ni, ph)
+            }
+          } else if (img) {
+            var nd = document.createElement('div')
+            nd.className = 'cover cover-initial'
+            nd.setAttribute('aria-hidden', 'true')
+            nd.textContent = firstChar(p.title)
+            img.parentNode.replaceChild(nd, img)
+          }
+        }
+      })
+      .catch(function () {})
   }
 })()
