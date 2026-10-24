@@ -274,6 +274,57 @@ async function main() {
   }, env)
   check('仍被其它文章引用的图不删', deleted.indexOf('covers/shared.jpg') < 0, deleted.join(','))
 
+  console.log('=== 14. 草稿存 R2 ===')
+  const r2 = new Map()
+  env.MEDIA = {
+    async put(key, value) { r2.set(key, value) },
+    async get(key) {
+      if (!r2.has(key)) return null
+      const v = r2.get(key)
+      return { json: async () => JSON.parse(v) }
+    },
+    async delete(key) { r2.delete(key) },
+    async list(opts) {
+      const prefix = (opts && opts.prefix) || ''
+      return {
+        objects: [...r2.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })),
+        truncated: false
+      }
+    }
+  }
+
+  r = await app.request('/api/admin/drafts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({ title: '草稿标题', category: 'travel', summary: '摘要', content: '正文内容' })
+  }, env)
+  const saved = await r.json()
+  check('保存草稿成功', saved.ok === true && !!saved.id, JSON.stringify(saved))
+  const draftId = saved.id
+
+  r = await app.request('/api/admin/drafts', { headers: { cookie } }, env)
+  const listD = await r.json()
+  check('草稿列表有 1 条', (listD.drafts || []).length === 1, 'len=' + (listD.drafts || []).length)
+  check('列表标题正确', !!(listD.drafts || [])[0] && listD.drafts[0].title === '草稿标题')
+
+  r = await app.request('/api/admin/drafts/' + draftId, { headers: { cookie } }, env)
+  const got = await r.json()
+  check('读取草稿内容', !!(got.draft && got.draft.content === '正文内容'), JSON.stringify(got))
+
+  r = await app.request('/api/admin/drafts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  }, env)
+  check('保存草稿需登录', r.status === 401, 'status=' + r.status)
+
+  r = await app.request('/api/admin/drafts/' + draftId, { method: 'DELETE', headers: { cookie } }, env)
+  check('删除草稿成功', r.status === 200, 'status=' + r.status)
+
+  r = await app.request('/api/admin/drafts', { headers: { cookie } }, env)
+  const listD2 = await r.json()
+  check('删除后列表为空', (listD2.drafts || []).length === 0, 'len=' + (listD2.drafts || []).length)
+
   console.log('')
   console.log('结果：通过 ' + pass + ' 项，失败 ' + fail + ' 项')
   if (fail > 0) process.exit(1)

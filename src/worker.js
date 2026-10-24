@@ -195,6 +195,20 @@ const ADMIN_PAGE = `<!doctype html>
   .search .clear{background:#fff;border:1px solid var(--line);border-radius:8px;
        padding:8px 13px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
   .search .clear:hover{border-color:var(--blue);color:var(--blue)}
+  /* 草稿弹窗 */
+  .modal{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;
+       display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.on{display:flex}
+  .modal-card{background:#fff;border-radius:14px;width:100%;max-width:560px;
+       max-height:80vh;overflow:auto;padding:20px 22px}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .modal-head h3{font-size:18px;font-weight:600}
+  .draft-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
+       padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .draft-item:last-child{border-bottom:none}
+  .draft-item:hover .t{color:var(--blue)}
+  .draft-item .t{font-size:16px;font-weight:500}
+  .draft-item .m{font-size:12px;color:var(--muted);margin-top:3px}
 </style>
 </head>
 <body>
@@ -262,7 +276,9 @@ const ADMIN_PAGE = `<!doctype html>
       <div class="hint" style="margin:8px 0 0">图片和视频可以直接拖进编辑区上传，也可以用工具栏的图片/视频按钮选文件。</div>
       <div class="acts">
         <button class="btn" id="saveBtn">发布文章</button>
+        <button class="btn ghost" id="saveDraftBtn" style="background:#fff;border-color:var(--line);color:var(--fg)">保存草稿</button>
         <button class="btn ghost" id="resetBtn" style="background:#fff;border-color:var(--line);color:var(--fg)">清空重写</button>
+        <button class="btn ghost" id="draftBtn" style="background:#fff;border-color:var(--line);color:var(--blue)">编辑草稿</button>
         <span class="msg" id="saveMsg"></span>
       </div>
     </div>
@@ -290,6 +306,17 @@ const ADMIN_PAGE = `<!doctype html>
     </div>
   </div>
 </main>
+
+<div class="modal" id="draftModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>选择草稿</h3>
+      <button type="button" class="btn mini" id="draftClose"
+              style="background:#fff;color:var(--muted);border:1px solid var(--line)">关闭</button>
+    </div>
+    <div id="draftList"><div class="empty">加载中…</div></div>
+  </div>
+</div>
 
 <script src="/assets/editor/easymde.min.js"></script>
 <script>
@@ -539,6 +566,128 @@ $('catTabs').onclick = (e) => {
   filter = b.dataset.cat
   ;[...$('catTabs').children].forEach(x => x.classList.toggle('on', x === b))
   load()
+}
+
+// ---- 草稿：存到 R2，随时可以回来接着写 ----
+function pad2(n) { return String(n).padStart(2, '0') }
+function fmtTime(ts) {
+  var d = new Date(ts)
+  if (isNaN(d)) return ''
+  return d.getFullYear() + '.' + pad2(d.getMonth() + 1) + '.' + pad2(d.getDate()) +
+    ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes())
+}
+
+$('saveDraftBtn').onclick = async function () {
+  var btn = $('saveDraftBtn')
+  btn.disabled = true
+  $('saveMsg').textContent = '保存草稿中…'
+  $('saveMsg').className = 'msg'
+  try {
+    var d = await api('/api/admin/drafts', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: $('title').value.trim(),
+        category: $('category').value,
+        summary: $('summary').value.trim(),
+        cover: $('cover').value.trim(),
+        date: $('pubdate').value || '',
+        content: getBody(),
+        editId: $('editId').value || ''
+      })
+    })
+    if (d.error) throw new Error(d.error)
+    $('saveMsg').textContent = '草稿已保存 ✓ 点「编辑草稿」可继续'
+    $('saveMsg').className = 'msg ok'
+  } catch (e) {
+    $('saveMsg').textContent = '保存草稿失败：' + e.message
+    $('saveMsg').className = 'msg err'
+  }
+  btn.disabled = false
+}
+
+function openDraftPicker() {
+  $('draftModal').classList.add('on')
+  loadDraftList()
+}
+function closeDraftPicker() { $('draftModal').classList.remove('on') }
+
+$('draftBtn').onclick = openDraftPicker
+$('draftClose').onclick = closeDraftPicker
+$('draftModal').onclick = function (e) {
+  if (e.target === $('draftModal')) closeDraftPicker()
+}
+
+async function loadDraftList() {
+  $('draftList').innerHTML = '<div class="empty">加载中…</div>'
+  try {
+    var d = await api('/api/admin/drafts')
+    if (d.error) throw new Error(d.error)
+    var list = d.drafts || []
+    if (!list.length) {
+      $('draftList').innerHTML = '<div class="empty">还没有草稿</div>'
+      return
+    }
+    $('draftList').innerHTML = list.map(function (x) {
+      return '<div class="draft-item" data-id="' + esc(x.id) + '">' +
+        '<div><div class="t">' + esc(x.title) + '</div>' +
+        '<div class="m">' + fmtTime(x.updated_at) + ' · ' + esc(CAT[x.category] || x.category) + '</div></div>' +
+        '<button type="button" class="btn mini danger" data-del="' + esc(x.id) + '">删除</button>' +
+      '</div>'
+    }).join('')
+  } catch (e) {
+    $('draftList').innerHTML = '<div class="empty">加载失败：' + esc(e.message) + '</div>'
+  }
+}
+
+$('draftList').onclick = function (e) {
+  var del = e.target.closest('[data-del]')
+  if (del) {
+    e.stopPropagation()
+    deleteDraft(del.getAttribute('data-del'))
+    return
+  }
+  var item = e.target.closest('.draft-item')
+  if (item) loadDraft(item.getAttribute('data-id'))
+}
+
+// 草稿 id 本身是 drafts/xxx.json，按路径段编码，别把斜杠也编掉
+function draftPath(id) {
+  return '/api/admin/drafts/' + String(id).split('/').map(encodeURIComponent).join('/')
+}
+
+async function loadDraft(id) {
+  try {
+    var d = await api(draftPath(id))
+    if (d.error) throw new Error(d.error)
+    var p = d.draft || {}
+    $('title').value = p.title || ''
+    $('category').value = p.category || 'notes'
+    $('summary').value = p.summary || ''
+    setCover(p.cover || '')
+    setBody(p.content || '')
+    $('pubdate').value = p.date || ''
+    $('editId').value = p.editId || ''
+    $('formTitle').textContent = p.editId ? '编辑（草稿）：' + (p.title || '') : '写新文章（草稿）'
+    $('saveBtn').textContent = p.editId ? '保存修改' : '发布文章'
+    $('saveMsg').textContent = '已载入草稿，修改后可发布或再存草稿'
+    $('saveMsg').className = 'msg ok'
+    closeDraftPicker()
+    if (typeof window !== 'undefined' && window.scrollTo) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  } catch (e) {
+    alert('载入草稿失败：' + e.message)
+  }
+}
+
+async function deleteDraft(id) {
+  if (!confirm('删除这份草稿？')) return
+  try {
+    await api(draftPath(id), { method: 'DELETE' })
+    loadDraftList()
+  } catch (e) {
+    alert('删除失败：' + e.message)
+  }
 }
 
 // ---- 顶部加载进度条 ----
@@ -1058,6 +1207,93 @@ app.get('/img/*', async (c) => {
   headers.set('etag', obj.httpEtag)
   headers.set('cache-control', 'public, max-age=31536000, immutable')
   return new Response(obj.body, { headers })
+})
+
+/* ==========================================================================
+   六·C、草稿（存 R2）
+   --------------------------------------------------------------------------
+   草稿不入库，直接以 JSON 存到 R2 的 drafts/ 下；
+   发布文章后草稿不会自动删，留在草稿箱里，需要时手动删。
+   ========================================================================== */
+
+const DRAFT_PREFIX = 'drafts/'
+
+app.post('/api/admin/drafts', requireAuth, async (c) => {
+  if (!c.env.MEDIA) return c.json({ error: '存储未配置（缺 R2 绑定）' }, 500)
+  const b = await c.req.json().catch(() => ({}))
+  const draft = {
+    title: (b.title || '').trim(),
+    category: CATEGORIES[b.category] ? b.category : 'notes',
+    summary: (b.summary || '').trim(),
+    cover: (b.cover || '').trim(),
+    date: b.date || '',
+    content: b.content || '',
+    editId: b.editId || '',
+    updated_at: Date.now()
+  }
+  const key = DRAFT_PREFIX + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.json'
+  await c.env.MEDIA.put(key, JSON.stringify(draft), {
+    httpMetadata: { contentType: 'application/json' },
+    customMetadata: {
+      title: draft.title.slice(0, 120),
+      updated_at: String(draft.updated_at),
+      category: draft.category
+    }
+  })
+  return c.json({ ok: true, id: key })
+})
+
+app.get('/api/admin/drafts', requireAuth, async (c) => {
+  if (!c.env.MEDIA) return c.json({ error: '存储未配置（缺 R2 绑定）' }, 500)
+  const list = await c.env.MEDIA.list({ prefix: DRAFT_PREFIX, limit: 100 })
+  const drafts = []
+  for (const obj of list.objects) {
+    const item = await c.env.MEDIA.get(obj.key)
+    if (!item) continue
+    let d = {}
+    try { d = await item.json() } catch {}
+    drafts.push({
+      id: obj.key,
+      title: d.title || '（无标题草稿）',
+      category: d.category || 'notes',
+      updated_at: d.updated_at || 0
+    })
+  }
+  drafts.sort((a, b) => b.updated_at - a.updated_at)
+  return c.json({ drafts })
+})
+
+app.get('/api/admin/drafts/*', requireAuth, async (c) => {
+  if (!c.env.MEDIA) return c.json({ error: '存储未配置（缺 R2 绑定）' }, 500)
+  let key
+  try {
+    key = decodeURIComponent(c.req.path.replace('/api/admin/drafts/', ''))
+  } catch {
+    return c.json({ error: '无效草稿' }, 400)
+  }
+  if (!key.startsWith(DRAFT_PREFIX) || key.includes('..')) return c.json({ error: '无效草稿' }, 400)
+  const obj = await c.env.MEDIA.get(key)
+  if (!obj) return c.json({ error: '草稿不存在' }, 404)
+  let draft = {}
+  try {
+    draft = await obj.json()
+  } catch {
+    return c.json({ error: '草稿损坏' }, 500)
+  }
+  return c.json({ draft })
+})
+
+app.delete('/api/admin/drafts/*', requireAuth, async (c) => {
+  if (!c.env.MEDIA) return c.json({ error: '存储未配置（缺 R2 绑定）' }, 500)
+  let key
+  try {
+    key = decodeURIComponent(c.req.path.replace('/api/admin/drafts/', ''))
+  } catch {
+    return c.json({ error: '无效草稿' }, 400)
+  }
+  if (!key.startsWith(DRAFT_PREFIX) || key.includes('..')) return c.json({ error: '无效草稿' }, 400)
+  await c.env.MEDIA.delete(key)
+  return c.json({ ok: true })
 })
 
 /* ==========================================================================
