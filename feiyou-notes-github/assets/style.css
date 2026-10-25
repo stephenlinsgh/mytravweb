@@ -132,10 +132,11 @@ img{max-width:100%;display:block}
 
 /* 后台发文用到的卡片与空状态 */
 .trip-card{display:block;overflow:hidden;padding:0}
-.trip-card .cover{width:100%;height:300px;object-fit:cover;display:block}
+.trip-card .cover:not(.cover-initial){width:100%;height:300px;object-fit:cover;display:block}
 /* 没有封面图时，用标题第一个字当封面 */
 .trip-card .cover-initial{
   display:flex;align-items:center;justify-content:center;
+  width:100%;height:300px;
   background:linear-gradient(135deg,#e9f1fb 0%,#cfe0f2 55%,#b9d4ee 100%);
   color:var(--blue-deep);
   font-size:108px;font-weight:800;line-height:1;
@@ -153,7 +154,7 @@ img{max-width:100%;display:block}
 .trip-card p{color:var(--ink);font-size:15px}
 @media(max-width:860px){
   .trip-card .cover{height:210px}
-  .trip-card .cover-initial{font-size:78px}
+  .trip-card .cover-initial{font-size:78px;height:210px}
 }
 .cms-empty{
   grid-column:1/-1;color:var(--muted);font-size:15px;
