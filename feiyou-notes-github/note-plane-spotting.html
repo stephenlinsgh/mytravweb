@@ -6,6 +6,7 @@
 <title>如何区分波音、空客和商飞的客机</title>
 <meta name="description" content="用真实 3D 模型玩认飞机游戏：旋转、缩放观察 A320、B737、C919 的机头、发动机与翼尖小翼。">
 <link rel="stylesheet" href="./assets/style.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('pn-theme')}catch(e){}if(t!=='dark'&&t!=='light'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})();</script>
 <style>
   .note-head{padding:46px 20px 8px}
   .note-head .inner{max-width:var(--maxw);margin:0 auto}
@@ -110,6 +111,23 @@
     .v-tools{max-width:52%}
     .note-head h1{font-size:26px}
   }
+
+  /* ===== 深色模式：把写死的浅色面板换成深色 ===== */
+  [data-theme="dark"] .viewer{background:linear-gradient(180deg,#141d2e 0%,#0e1626 100%)}
+  [data-theme="dark"] .v-loading{background:#0e1626}
+  [data-theme="dark"] .v-loading .bar{background:#22304a}
+  [data-theme="dark"] .v-badge{background:rgba(14,22,38,.92)}
+  [data-theme="dark"] .v-tools button{background:rgba(14,22,38,.92);color:var(--blue)}
+  [data-theme="dark"] .v-tools button:hover{background:var(--surface);border-color:var(--blue)}
+  [data-theme="dark"] .tabs button{background:var(--surface)}
+  [data-theme="dark"] .tabs button:hover:not(:disabled){background:var(--sky-soft)}
+  [data-theme="dark"] .game{background:var(--surface)}
+  [data-theme="dark"] .g-opts button{background:var(--surface)}
+  [data-theme="dark"] .g-opts button:hover:not(:disabled){background:var(--sky-soft)}
+  [data-theme="dark"] .g-opts button.right{background:#12352a;color:#5fd3a5}
+  [data-theme="dark"] .g-opts button.wrong{background:#3d1c1c;color:#f19a9a}
+  [data-theme="dark"] .g-fb.ok{background:#12352a;border-color:#1f5c46}
+  [data-theme="dark"] .g-fb.no{background:#3d1c1c;border-color:#6b3232}
 </style>
 </head>
 <body>
@@ -124,6 +142,10 @@
       <a href="./visit.html">参观</a>
       <a href="./about.html">关于</a>
     </nav>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换深色 / 浅色模式" title="切换深色 / 浅色模式">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
   </div>
 </header>
 
@@ -673,5 +695,6 @@ const waitReady=setInterval(()=>{
 },250);
 </script>
 
+<script src="./assets/theme.js"></script>
 </body>
 </html>

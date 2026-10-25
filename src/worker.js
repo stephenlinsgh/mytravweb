@@ -1085,6 +1085,7 @@ app.get('/post/:slug', async (c) => {
 <title>${esc(p.title)} · 个人笔记</title>
 <meta name="description" content="${esc(p.summary || p.title)}">
 <link rel="stylesheet" href="/assets/style.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('pn-theme')}catch(e){}if(t!=='dark'&&t!=='light'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})();</script>
 <style>
   .post{max-width:760px;margin:0 auto;padding:44px 20px 80px}
   .post h1{font-size:32px;line-height:1.35;color:var(--blue);margin-bottom:14px;font-weight:700}
@@ -1109,6 +1110,7 @@ app.get('/post/:slug', async (c) => {
   .post .body th,.post .body td{border:1px solid var(--line);padding:10px 13px;text-align:left}
   .post .body th{background:var(--sky-soft);font-weight:600}
   .post .body hr{border:none;border-top:1px solid var(--line);margin:36px 0}
+  [data-theme="dark"] .post .body pre{background:#0a1220;border:1px solid var(--line)}
   .post .back{display:inline-block;margin-top:46px;color:var(--blue);text-decoration:none}
   .post .body .vid{position:relative;width:100%;aspect-ratio:16/9;margin:22px 0;background:#000}
   .post .body .vid iframe,.post .body .vid video{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:var(--radius)}
@@ -1116,12 +1118,22 @@ app.get('/post/:slug', async (c) => {
 </style>
 </head>
 <body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">个人笔记 <span class="plane">📝</span></a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换深色 / 浅色模式" title="切换深色 / 浅色模式">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
 <article class="post">
   <h1>${esc(p.title)}</h1>
   <div class="meta">${esc(cat)} · ${date}</div>
   <div class="body">${renderMarkdown(p.content)}</div>
   <a class="back" href="/">← 返回首页</a>
 </article>
+<script src="/assets/theme.js"></script>
 </body>
 </html>`)
 })

@@ -6,6 +6,7 @@
 <title>风雨里的宁波 · 旅行笔记</title>
 <meta name="description" content="2026年8月，上海—宁波四日之行。从晴空到台风“白海豚”过境：天童寺、天一阁、东钱湖、杭州湾跨海大桥。">
 <link rel="stylesheet" href="./assets/style.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('pn-theme')}catch(e){}if(t!=='dark'&&t!=='light'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})();</script>
 <style>
   .note-head{padding:46px 20px 8px}
   .note-head .inner{max-width:var(--maxw);margin:0 auto}
@@ -53,6 +54,10 @@
       <a href="./visit.html">参观</a>
       <a href="./about.html">关于</a>
     </nav>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换深色 / 浅色模式" title="切换深色 / 浅色模式">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
   </div>
 </header>
 
@@ -104,5 +109,6 @@
   </div>
 </footer>
 
+<script src="./assets/theme.js"></script>
 </body>
 </html>
