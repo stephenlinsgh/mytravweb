@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>如何区分波音、空客和商飞的客机</title>
-<meta name="description" content="用真实 3D 模型玩认飞机游戏：旋转、缩放观察 A320、B737、C919 的机头、发动机与翼尖小翼。">
+<title>眼力大挑战 · 五关认飞机</title>
+<meta name="description" content="五关眼力挑战：比较天线位置、看引擎与整流罩形状、辨认现实照片，用真实 3D 模型区分 A320、B737、C919，通关可下载成绩表。">
 <link rel="stylesheet" href="./assets/style.css">
+<link rel="preload" as="image" href="./assets/planes/a320-1.jpg">
+<link rel="preload" as="image" href="./assets/planes/a320-2.jpg">
+<link rel="preload" as="image" href="./assets/planes/b737-1.jpg">
+<link rel="preload" as="image" href="./assets/planes/c919-1.jpg">
 <script>(function(){var t=null;try{t=localStorage.getItem('pn-theme')}catch(e){}if(t!=='dark'&&t!=='light'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})();</script>
 <style>
   .note-head{padding:46px 20px 8px}
@@ -94,6 +98,46 @@
   .g-final .big{font-size:40px;font-weight:800;color:var(--blue);line-height:1.2}
   .g-final .rank{font-size:17px;color:var(--ink);margin:8px 0 18px}
 
+  /* ===== 题目媒体区：天线示意 / 现实实拍 / 3D 提示 ===== */
+  .g-step{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+  .g-media{margin:4px 0 16px}
+  .g-media-note{font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6}
+  .g-photo{
+    display:block;width:100%;max-height:330px;object-fit:contain;
+    border-radius:12px;border:1px solid var(--line);background:#eef3f9;
+  }
+  .g-photo-cap{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+  .g-model-note{
+    border:1px dashed var(--line);border-radius:12px;padding:14px 16px;
+    background:var(--sky-soft);font-size:14px;color:var(--muted);text-align:center;line-height:1.7;
+  }
+  .g-jump{
+    margin-left:8px;background:var(--blue);color:#fff;border:none;border-radius:8px;
+    padding:5px 12px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;
+  }
+  .g-svg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .g-svg-card{
+    border:2px solid var(--line);border-radius:12px;padding:10px;background:#fff;
+    text-align:center;color:var(--blue);
+  }
+  .g-svg-card b{display:block;font-size:15px;margin-bottom:6px}
+  .g-svg-card svg{width:100%;height:auto;display:block}
+  .g-download{
+    display:inline-block;background:var(--accent);color:#fff;border:none;border-radius:10px;
+    padding:11px 22px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin:4px 8px 0 0;
+  }
+  .g-download:hover{filter:brightness(1.08)}
+  .g-score-line{font-size:13px;color:var(--muted);margin-top:12px;line-height:1.7}
+
+  /* 现实照片图集 + 来源 */
+  .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
+  .photo-grid figure{margin:0}
+  .photo-grid img{width:100%;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+  .photo-grid figcaption{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .credits{font-size:12px;color:var(--muted);line-height:1.9}
+  .credits ul{padding-left:20px;margin:8px 0 0}
+  .credits a{color:var(--blue)}
+
   .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
   table{width:100%;border-collapse:collapse;font-size:15px;min-width:640px}
   th,td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line)}
@@ -110,6 +154,8 @@
     .viewer canvas{height:300px}
     .v-tools{max-width:52%}
     .note-head h1{font-size:26px}
+    .g-svg-grid,.photo-grid{grid-template-columns:1fr}
+    .g-photo{max-height:240px}
   }
 
   /* ===== 深色模式：把写死的浅色面板换成深色 ===== */
@@ -128,6 +174,10 @@
   [data-theme="dark"] .g-opts button.wrong{background:#3d1c1c;color:#f19a9a}
   [data-theme="dark"] .g-fb.ok{background:#12352a;border-color:#1f5c46}
   [data-theme="dark"] .g-fb.no{background:#3d1c1c;border-color:#6b3232}
+  [data-theme="dark"] .g-photo{background:var(--surface)}
+  [data-theme="dark"] .g-svg-card{background:var(--surface)}
+  [data-theme="dark"] .g-model-note{background:var(--surface)}
+  [data-theme="dark"] .g-download{background:#16845f}
 </style>
 </head>
 <body>
@@ -152,11 +202,13 @@
 <section class="note-head">
   <div class="inner">
     <div class="breadcrumb"><a href="./notes.html">笔记</a> / 眼力大挑战</div>
-    <h1>如何区分波音、空客和商飞的客机</h1>
+    <h1>眼力大挑战 · 五关认飞机</h1>
     <div class="meta">
       <span class="pill">航空知识</span>
       <span class="pill">真实 3D 模型</span>
-      <span class="pill">6 关</span>
+      <span class="pill">现实实拍照片</span>
+      <span class="pill">5 关 · 10 题</span>
+      <span class="pill">可下载成绩表</span>
     </div>
   </div>
 </section>
@@ -164,7 +216,7 @@
 <main class="wrap" style="padding-top:22px">
   <article class="prose">
 
-    <p class="lead">下面三架都是<b>真实的 3D 模型</b>，可以拖动旋转、滚轮缩放。先随便转转看看，然后进入六关挑战——每一关会把镜头对准某个关键部位，考你那是哪一款。</p>
+    <p class="lead">下面三架都是<b>真实的 3D 模型</b>，可以拖动旋转、滚轮缩放。先随便转转看看，然后进入五关挑战——从机背天线、引擎与整流罩的形状，一直考到现实照片辨认。通关后可以把自己的答题明细下载成表格。</p>
 
     <div class="viewer" id="viewer">
       <div class="v-loading" id="vLoading">
@@ -192,13 +244,15 @@
     </div>
     <div class="spec" id="spec"></div>
 
-    <h2 style="margin-top:34px">眼力挑战 · 六关</h2>
+    <h2 style="margin-top:34px">眼力挑战 · 五关</h2>
     <div class="game" id="game">
       <div class="g-top">
-        <div class="g-round" id="gRound">第 1 关 / 6</div>
+        <div class="g-round" id="gRound">第 1 关 / 5</div>
         <div class="g-score" id="gScore">得分 0</div>
       </div>
       <div class="g-bar"><i id="gBar"></i></div>
+      <div class="g-step" id="gStep"></div>
+      <div class="g-media" id="gMedia"></div>
       <div class="g-q" id="gQ">正在载入模型，请稍候…</div>
       <div class="g-hint">
         <button id="btnHint">看提示</button><span id="gHintText"></span>
@@ -207,16 +261,19 @@
       <div class="g-fb" id="gFb" hidden>
         <div class="g-fb-title" id="gFbTitle"></div>
         <div class="g-fb-why" id="gFbWhy"></div>
-        <button class="g-next" id="gNext">下一关 →</button>
+        <button class="g-next" id="gNext">下一题 →</button>
+        <button class="g-download" id="gDownload" hidden>⬇ 下载成绩表（CSV）</button>
+        <div class="g-score-line" id="gScoreLine"></div>
       </div>
     </div>
 
     <h2>为什么这样就能认出来</h2>
     <p>三家公司的设计哲学不同，落到具体机型上就成了稳定的"家族特征"。把上面三个模型转一转，对照着看会发现：</p>
     <ul>
-      <li><b>机头</b>：波音 737 的机头更尖、驾驶舱侧窗偏方正；空客一派（A320、C919）机头更圆钝、侧窗偏斜。</li>
-      <li><b>发动机</b>：737 为了离地间隙，进气道底部被削平成「扁嘴」；空客和 C919 的发动机是饱满的圆形，C919 的还要更大一号。</li>
-      <li><b>翼尖小翼</b>：737 用向后斜掠的融合式翼梢小翼；A320 和 C919 用竖直的「鲨鱼鳍」。</li>
+      <li><b>机背天线</b>：波音 737 机背靠前与中后段常各有一根显眼的刀状 VHF 天线，俯视时是一对凸起；空客一派（A320、C919）多用低矮的共形天线。<span style="color:var(--muted)">（不同航司、批次的天线配置会有差异，天线只能当辅助线索。）</span></li>
+      <li><b>发动机与整流罩</b>：737 为了留出离地间隙，把发动机整流罩底部削平成「扁嘴」；A320 是标准圆筒；C919 的圆筒直径还要更大一号。</li>
+      <li><b>机头整流罩（雷达罩）</b>：波音 737 更尖、驾驶舱侧窗偏方正；空客一派（A320、C919）更圆钝、侧窗后缘收成斜角。</li>
+      <li><b>翼尖小翼</b>：737 用向后斜掠的融合式翼梢小翼（MAX 为上下分叉的双羽）；A320 和 C919 用竖直的「鲨鱼鳍」。</li>
     </ul>
 
     <h2>三机速查表</h2>
@@ -236,6 +293,28 @@
         </tbody>
       </table>
     </div>
+
+    <h2 style="margin-top:34px">现实照片里的细节</h2>
+    <p>模型看的是结构，照片看的是实机。下面三张对应关卡里考到的发动机整流罩与整机轮廓：</p>
+    <div class="photo-grid">
+      <figure><img src="./assets/planes/engine-737.jpg" alt="波音 737 发动机整流罩正面" loading="lazy"><figcaption>波音 737 的发动机整流罩：注意进气道下缘被削平的处理。</figcaption></figure>
+      <figure><img src="./assets/planes/engine-a320.jpg" alt="A320 的 CFM56 发动机正面" loading="lazy"><figcaption>A320 的 CFM56：完整饱满的圆形进气口。</figcaption></figure>
+      <figure><img src="./assets/planes/b737-2.jpg" alt="波音 737 MAX 实拍" loading="lazy"><figcaption>整机轮廓：机头、发动机与翼尖要一起看。</figcaption></figure>
+      <figure><img src="./assets/planes/c919-2.jpg" alt="C919 首架原型机 B-001A" loading="lazy"><figcaption>C919 首架原型机 B-001A（2017 年首飞）。</figcaption></figure>
+    </div>
+
+    <h2 style="margin-top:34px">图片来源</h2>
+    <p class="credits">本页实拍照片均取自 Wikimedia Commons，按原许可标注作者与出处：</p>
+    <ul class="credits">
+      <li>汉莎 A320-211 — Julian Herzog，<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:Lufthansa_Airbus_A320-211_D-AIQT_01.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>Frontier A320neo — Acroterion，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:Frontier_Airbus_A320neo_N353FR_BWI_MD1.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>Southwest 737 MAX 8 — Acroterion，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:Southwest_Boeing_737-8_MAX_N8847Q_BWI_MD2.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>Icelandair 737 MAX 8 — MarcelX42，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:Berlin_Brandenburg_Airport_Icelandair_Boeing_737-8_MAX_TF-ICY_(DSC07832).jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>COMAC C919 — Ken Chen，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:COMAC_C919_-_Commercial_Aircraft_Corporation_Of_China_AN4748979.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>C919 首架原型机 B-001A — Weimeng (airliners.net)，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:COMAC_B-001A_May_2017.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>Vueling A320 的 CFM56 — Bene Riobó，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，<a href="https://commons.wikimedia.org/wiki/File:EC-LZZ_A320_Vueling_CFM56_BCN.jpg" target="_blank" rel="noopener">原图</a></li>
+      <li>波音 737-400 发动机 — Davidelit，公有领域，<a href="https://commons.wikimedia.org/wiki/File:Boeing_737-400_Engine.JPG" target="_blank" rel="noopener">原图</a></li>
+    </ul>
 
     <p style="margin-top:30px"><a href="./notes.html">← 返回笔记</a></p>
   </article>
@@ -573,119 +652,247 @@ function loop(){
 }
 resize(); setView('side'); loop();
 
-/* ================= 游戏 ================= */
-const ROUNDS=[
- { q:'镜头已对准发动机：这架的进气道底部被削平了，侧面看像个「扁嘴」。它是谁？',
-   view:'engine', answer:'b737',
-   hint:'波音 737 的发动机为了离地间隙吊得更低，底面被切掉一块。',
-   why:'<b>波音 737</b>的发动机为了留出离地间隙，整流罩底部被削平成「扁嘴」。这是 737 最好认的招牌之一，切到发动机视角一看就很明显。' },
- { q:'三架里，这一台的发动机直径最大。它是谁？',
-   view:'engine', answer:'c919',
-   hint:'C919 的机身比 A320 略大，配套发动机也更大一号。',
-   why:'<b>C919</b> 比 A320 略大一号，配套的 LEAP-1A / CJ-1000A 发动机直径也更大。对比三个模型的发动机特写就能看出差别。' },
- { q:'镜头对准机头：机头尖尖的，驾驶舱侧窗方方正正。它是谁？',
-   view:'nose', answer:'b737',
-   hint:'波音机头更尖、侧窗偏矩形；空客一派偏圆钝、偏斜。',
-   why:'<b>波音 737</b>的机头更尖更锐利，驾驶舱侧窗接近矩形。A320 和 C919 都源自空客的设计语言，机头更圆钝、侧窗后缘收窄成斜角。' },
- { q:'镜头对准翼尖：翼尖上是一片向后斜掠的小翼。它是谁？',
-   view:'wing', answer:'b737',
-   hint:'737 用后斜的融合式翼梢小翼，空客一派用竖直的鲨鱼鳍。',
-   why:'<b>波音 737</b>用的是 blended winglet（融合式翼梢小翼），向后斜掠；A320 和 C919 用的是竖直的 sharklet（鲨鱼鳍）。' },
- { spot:true }, { spot:true },
+/* ================= 游戏：五关 · 10 题 ================= */
+const PLANE_KEYS = ['a320','b737','c919'];
+const PHOTO_SRC = './assets/planes/';
+const KIND_LABEL = { svg:'天线示意', model:'3D 模型', photo:'现实照片' };
+const VIEW_LABEL = { side:'整体轮廓', front:'前视', top:'俯视', nose:'机头特写', engine:'发动机特写', wing:'翼尖特写' };
+
+/* 机背天线布局俯视示意（教学示意，非工程图）。橙点＝显眼的刀状天线 */
+function antennaSvg(dots){
+  return '<svg viewBox="0 0 200 90" role="img" aria-label="机背天线位置俯视示意">'+
+    '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">'+
+      '<path d="M14 45 Q14 38 28 38 L152 38 Q178 38 194 45 Q178 52 152 52 L28 52 Q14 52 14 45 Z"/>'+
+      '<path d="M84 40 L44 12 L36 12 L74 40 M84 50 L44 78 L36 78 L74 50"/>'+
+      '<path d="M164 40 L182 27 M164 50 L182 63"/>'+
+    '</g>'+
+    dots.map(d=>'<g><circle cx="'+d[0]+'" cy="'+d[1]+'" r="3.4" fill="#e0602c"/>'+
+      '<line x1="'+d[0]+'" y1="'+(d[1]-7)+'" x2="'+d[0]+'" y2="'+(d[1]+7)+'" stroke="#e0602c" stroke-width="1.2"/></g>').join('')+
+  '</svg>';
+}
+const ANTENNA = {
+  A: antennaSvg([[100,39]]),
+  B: antennaSvg([[56,39],[132,39]]),
+  C: antennaSvg([[104,39],[160,39]]),
+};
+
+const ROUNDS = [
+  { title:'第一关 · 比较天线位置', steps:[
+    { kind:'svg',
+      q:'下面三张是机背天线布局的俯视示意。哪一种是波音 737 常见的配置？',
+      hint:'737 机背一前一后有两根显眼的刀状 VHF 天线；空客一派多用低矮的共形天线。',
+      opts:['A','B','C'], optLabels:['图 A','图 B','图 C'], answer:'B',
+      why:'<b>波音 737</b> 机背靠前与中后段各有一根显眼的刀状天线，俯视时是一对凸起；A320 / C919 的天线更低矮、布局也不同。注意天线配置会随航司与批次变化，它只是<b>辅助线索</b>，主力还得看发动机与机头。' }
+  ]},
+  { title:'第二关 · 看引擎的形状', steps:[
+    { kind:'model', view:'engine', pick:'b737',
+      q:'镜头已对准发动机：进气道底部被削平，侧面看像个「扁嘴」。它是谁？',
+      hint:'737 的发动机为了离地间隙吊得更低，整流罩底面被切掉一块。',
+      why:'<b>波音 737</b> 为了留出离地间隙，把发动机整流罩底部削平成「扁嘴」，这是它最好认的招牌。' },
+    { kind:'model', view:'engine', pick:'c919',
+      q:'这一台的进气口是饱满的正圆，而且直径在三架里最大。它是谁？',
+      hint:'C919 机身比 A320 略大，配套发动机也更大一号。',
+      why:'<b>C919</b> 比 A320 略大一号，配套发动机的直径也更大，进气口是完整饱满的正圆。' }
+  ]},
+  { title:'第三关 · 看整流罩的形状', steps:[
+    { kind:'model', view:'nose', pick:'b737',
+      q:'镜头对准机头整流罩（雷达罩）：又尖又长，驾驶舱侧窗方方正正。它是谁？',
+      hint:'波音机头更尖、侧窗偏矩形；空客一派偏圆钝、后缘收成斜角。',
+      why:'<b>波音 737</b> 的机头雷达罩尖而锐利，驾驶舱侧窗接近矩形；A320 与 C919 是圆钝的空客式机头。' },
+    { kind:'model', view:'engine', pick:'a320',
+      q:'这台发动机整流罩是完整饱满的圆筒，直径也不算最大。它是谁？',
+      hint:'排除了扁嘴的 737 和最大号的 C919，剩下的就是 A320。',
+      why:'<b>A320</b> 的发动机整流罩是标准圆筒，既没有 737 的削平底面，也没有 C919 那么大的直径。' }
+  ]},
+  { title:'第四关 · 看多张现实图片', steps:[
+    { kind:'photo', img:'a320-1.jpg', answer:'a320',
+      q:'这张实拍照片里的是哪一款？',
+      hint:'看圆钝的机头和标准圆筒发动机，再看翼尖的小翼。',
+      why:'<b>A320</b>：圆钝机头、标准圆筒发动机，是空客单通道客机的经典轮廓。' },
+    { kind:'photo', img:'b737-1.jpg', answer:'b737',
+      q:'这张实拍照片里的是哪一款？',
+      hint:'重点看发动机下缘是不是被削平，以及翼尖小翼的形状。',
+      why:'<b>波音 737 MAX 8</b>：发动机整流罩下缘削平，配合 737 家族特有的翼尖小翼。' },
+    { kind:'photo', img:'c919-1.jpg', answer:'c919',
+      q:'这张实拍照片里的是哪一款？',
+      hint:'看涂装与机身上的 COMAC / C919 字样，还有更大号的圆筒发动机。',
+      why:'<b>C919</b>：中国商飞自研单通道客机，空客式圆鼻头配更大号的圆筒发动机。' }
+  ]},
+  { title:'第五关 · 综合小测', steps:[
+    { kind:'model', spot:true,
+      q:'先把这台 3D 模型随便转一转，凭整体轮廓认一认——它是哪一款？',
+      hint:'圆钝机头＝空客一派；扁嘴发动机＝737；最大的圆筒发动机＝C919。',
+      why:'用「机头 / 发动机 / 翼尖特写」逐一验证，最容易锁定。' },
+    { kind:'photo', img:'a320-2.jpg', answer:'a320',
+      q:'最后一张实拍：绿色的大直径发动机整流罩、竖直鲨鱼鳍，这是谁？',
+      hint:'neo 换装了大涵道比发动机，但圆鼻头与鲨鱼鳍没变。',
+      why:'<b>A320neo</b>：换装 LEAP-1A / PW1100G 大直径发动机，仍是空客家族的圆鼻头与鲨鱼鳍。答完这题就能下载成绩表了。' }
+  ]},
 ];
 
-let idx=0, score=0, streak=0, answered=false, hinted=false, pick=null;
-const G={ round:$('gRound'), score:$('gScore'), bar:$('gBar'), q:$('gQ'), opts:$('gOpts'),
+const TOTAL_STEPS = ROUNDS.reduce((s,r)=>s+r.steps.length,0);
+
+let roundIdx=0, stepIdx=0, score=0, streak=0, answered=false, hinted=false, finished=false, pick=null;
+let records=[];
+const G={ round:$('gRound'), score:$('gScore'), bar:$('gBar'), step:$('gStep'),
+  media:$('gMedia'), q:$('gQ'), opts:$('gOpts'),
   fb:$('gFb'), fbT:$('gFbTitle'), fbW:$('gFbWhy'), next:$('gNext'),
+  download:$('gDownload'), scoreLine:$('gScoreLine'),
   hint:$('gHintText'), btnHint:$('btnHint') };
 
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function curStep(){ return ROUNDS[roundIdx].steps[stepIdx]; }
+function doneSteps(){ let n=0; for(let i=0;i<roundIdx;i++) n+=ROUNDS[i].steps.length; return n+stepIdx; }
+function labelOf(kind,k){ return kind==='svg' ? ('图 '+k) : MODELS[k].name; }
+function fullName(kind,k){ return kind==='svg' ? ('图 '+k) : (MODELS[k].name+'（'+MODELS[k].cn+'）'); }
+function rankText(s){
+  return s>=90 ? '🏆 资深航空爱好者 —— 细节和实拍都难不倒你。'
+       : s>=60 ? '🥈 眼力不错 —— 主要特征都记住了，再多看看实拍巩固。'
+       : s>=30 ? '🥉 初窥门径 —— 回去把速查表和照片再过一遍。'
+       : '🌱 入门阶段 —— 先记住「扁嘴发动机」和「尖机头」这两条最明显的线索。';
+}
+
 function updateTop(){
-  G.round.textContent='第 '+Math.min(idx+1,ROUNDS.length)+' 关 / '+ROUNDS.length;
-  G.score.textContent='得分 '+score;
-  G.bar.style.width=(idx/ROUNDS.length*100)+'%';
+  G.round.textContent = finished ? ('完成 / '+ROUNDS.length+' 关') : ROUNDS[roundIdx].title;
+  G.score.textContent = '得分 '+score;
+  G.bar.style.width = (finished?100:doneSteps()/TOTAL_STEPS*100)+'%';
 }
 
 function renderRound(){
-  if(idx>=ROUNDS.length) return finishGame();
-  const r=ROUNDS[idx];
-  answered=false; hinted=false;
-  G.hint.textContent=''; G.fb.hidden=true; G.opts.innerHTML='';
+  if(roundIdx>=ROUNDS.length) return finishGame();
+  const r=ROUNDS[roundIdx], s=r.steps[stepIdx];
+  answered=false; hinted=false; finished=false;
+  G.hint.textContent=''; G.fb.hidden=true; G.opts.innerHTML=''; G.media.innerHTML='';
+  G.download.hidden=true; G.scoreLine.textContent='';
+  G.step.textContent = r.steps.length>1
+    ? ('本关第 '+(stepIdx+1)+' / '+r.steps.length+' 题 · 全程共 '+TOTAL_STEPS+' 题')
+    : ('全程共 '+TOTAL_STEPS+' 题');
   updateTop();
 
-  if(r.spot){
-    pick=shuffle(['a320','b737','c919'])[0];
-    G.q.textContent='随便转一转这台模型，凭整体轮廓认一认——它是哪一款？';
-    if(models[pick]){ showModel(pick); spin=true; updateSpinBtn(); }
-    else { G.q.textContent+='（模型仍在载入，请稍候再点下一关）'; }
+  if(s.kind==='svg'){
+    G.media.innerHTML='<div class="g-media-note">橙点 = 机背上显眼的刀状天线位置（教学示意，非精确工程图）</div>'+
+      '<div class="g-svg-grid">'+s.opts.map(k=>'<div class="g-svg-card"><b>图 '+k+'</b>'+ANTENNA[k]+'</div>').join('')+'</div>';
+    pick=s.answer;
+  }else if(s.kind==='photo'){
+    G.media.innerHTML='<img class="g-photo" src="'+PHOTO_SRC+s.img+'" alt="客机实拍照片">'+
+      '<div class="g-photo-cap">现实照片 · Wikimedia Commons（来源见文末）</div>';
+    pick=s.answer;
   }else{
-    pick=r.answer;
-    G.q.textContent=r.q;
-    spin=false; updateSpinBtn();
-    if(models[pick]) showModel(pick);
-    setTimeout(()=>setView(r.view),40);
+    pick = s.spot ? shuffle(PLANE_KEYS)[0] : s.pick;
+    const ready = !!models[pick];
+    G.media.innerHTML='<div class="g-model-note">👆 看上方的 3D 模型：镜头'+
+      (s.spot?'保持整体轮廓，可拖动旋转':'已切到「'+VIEW_LABEL[s.view]+'」')+
+      '，滚轮可缩放'+(ready?'':'（模型仍在载入，请稍候）')+
+      ' <button class="g-jump" type="button">↑ 回到 3D 模型</button></div>';
+    G.media.querySelector('.g-jump').onclick=()=>viewer.scrollIntoView({behavior:'smooth',block:'center'});
+    if(ready) showModel(pick);
+    spin = !!s.spot; updateSpinBtn();
+    if(s.spot) setView('side');
+    else setTimeout(()=>setView(s.view),40);
   }
 
-  shuffle(['a320','b737','c919']).forEach(k=>{
+  G.q.textContent=s.q;
+  const opts = s.kind==='svg' ? s.opts.slice() : shuffle(PLANE_KEYS);
+  opts.forEach((k,i)=>{
     const b=document.createElement('button');
-    b.textContent=MODELS[k].name;
+    b.textContent = s.kind==='svg' ? s.optLabels[i] : MODELS[k].name;
     b.onclick=()=>answer(k,b);
     G.opts.appendChild(b);
   });
 }
 
 function answer(guess,btn){
-  if(answered) return;
+  if(answered||finished) return;
   answered=true;
-  const r=ROUNDS[idx];
-  const ok=guess===pick;
+  const s=curStep();
+  const ok=(guess===pick);
+  const rightLabel=labelOf(s.kind,pick);
   [...G.opts.children].forEach(b=>{
     b.disabled=true;
-    if(b.textContent===MODELS[pick].name) b.classList.add('right');
+    if(b.textContent===rightLabel) b.classList.add('right');
   });
   if(!ok) btn.classList.add('wrong');
-  if(ok){ score+=10; streak++; if(streak%3===0) score+=5; } else streak=0;
+  let gained=0;
+  if(ok){ gained=10; streak++; if(streak%3===0) gained+=5; } else streak=0;
+  score+=gained;
+
+  records.push({
+    round: ROUNDS[roundIdx].title,
+    kind: KIND_LABEL[s.kind] + (s.spot?'（整体轮廓）':(s.kind==='model'&&s.view?'（'+VIEW_LABEL[s.view]+'）':'')),
+    question: s.q,
+    your: fullName(s.kind,guess),
+    correct: fullName(s.kind,pick),
+    ok: ok?'答对':'答错',
+    gained: gained,
+  });
 
   G.fb.hidden=false;
   G.fb.className='g-fb '+(ok?'ok':'no');
-  G.fbT.textContent= ok?'✅ 答对了！':'❌ 差一点';
-  const why = r.spot
-    ? MODELS[pick].tip+'。用「机头 / 发动机 / 翼尖特写」逐一验证，最容易锁定。'
-    : r.why;
-  G.fbW.innerHTML=(ok?'':'正确答案是 <b>'+MODELS[pick].name+'（'+MODELS[pick].cn+'）</b>。')+why;
-  G.next.textContent = idx===ROUNDS.length-1 ? '看看成绩 →':'下一关 →';
+  G.fbT.textContent= ok ? ('✅ 答对了！ +'+gained+' 分') : '❌ 差一点';
+  G.fbW.innerHTML=(ok?'':'正确答案是 <b>'+fullName(s.kind,pick)+'</b>。')+s.why;
+  const lastRound = roundIdx===ROUNDS.length-1;
+  const lastStep = stepIdx===ROUNDS[roundIdx].steps.length-1;
+  G.next.textContent = (lastRound&&lastStep) ? '看看成绩 →'
+    : (lastStep ? '下一关 →' : '下一题 →');
+  G.scoreLine.textContent = '已答 '+records.length+' / '+TOTAL_STEPS+' 题';
   updateTop();
 }
 
 function finishGame(){
-  spin=false; updateSpinBtn();
+  finished=true; spin=false; updateSpinBtn();
+  G.media.innerHTML=''; G.step.textContent=''; G.opts.innerHTML='';
   G.q.textContent='全部通关！';
-  G.opts.innerHTML='';
   G.fb.hidden=false; G.fb.className='g-fb ok';
   G.fbT.textContent='🎉 挑战完成';
-  const rk = score>=60?'🏆 资深航空爱好者 —— 你基本机场门口一站就能认全。'
-    : score>=40?'🥈 眼力不错 —— 三大特征都记住了，多转转模型巩固一下。'
-    : score>=20?'🥉 初窥门径 —— 回去把上面那张速查表再过一遍。'
-    :'🌱 入门阶段 —— 别急，先记住「扁嘴发动机」和「尖机头」这两条最明显的线索。';
-  G.fbW.innerHTML='<div class="g-final"><div class="big">'+score+' 分</div><div class="rank">'+rk+'</div></div>';
+  const right=records.filter(r=>r.ok==='答对').length;
+  G.fbW.innerHTML='<div class="g-final"><div class="big">'+score+' 分</div><div class="rank">'+rankText(score)+'</div></div>';
   G.next.textContent='↻ 再玩一次';
-  G.bar.style.width='100%';
-  G.round.textContent='完成 / '+ROUNDS.length;
-  G.score.textContent='得分 '+score;
+  G.download.hidden=false;
+  G.scoreLine.textContent='共 '+TOTAL_STEPS+' 题，答对 '+right+' 题 · 点下方按钮把答题明细保存成表格';
+  G.hint.textContent='';
+  updateTop();
+}
+
+function resetGame(){
+  roundIdx=0; stepIdx=0; score=0; streak=0; pick=null; records=[]; finished=false;
+  renderRound();
 }
 
 G.btnHint.onclick=()=>{
-  if(hinted||answered) return;
+  if(hinted||answered||finished) return;
   hinted=true;
-  const r=ROUNDS[idx];
-  G.hint.textContent='💡 '+(r.spot
-    ? '圆钝机头 = 空客一派；扁嘴发动机 = 737；竖直小翼 = 空客 / C919。'
-    : r.hint);
+  G.hint.textContent='💡 '+curStep().hint;
 };
 G.next.onclick=()=>{
-  if(idx>=ROUNDS.length){ idx=0; score=0; streak=0; pick=null; }
-  else idx++;
-  renderRound();
+  if(finished){ resetGame(); return; }
+  if(!answered) return;
+  stepIdx++;
+  if(stepIdx>=ROUNDS[roundIdx].steps.length){ stepIdx=0; roundIdx++; }
+  if(roundIdx>=ROUNDS.length) finishGame();
+  else renderRound();
+};
+
+/* 下载成绩表：UTF-8 BOM + CSV，Excel 直接打开不乱码 */
+G.download.onclick=()=>{
+  const rows=[['关卡','题型','题目','你的选择','正确答案','结果','本题得分','累计得分']];
+  let acc=0;
+  records.forEach(r=>{
+    acc+=r.gained;
+    rows.push([r.round,r.kind,r.question,r.your,r.correct,r.ok,r.gained,acc]);
+  });
+  rows.push([]);
+  rows.push(['总分',score]);
+  rows.push(['答对题数',records.filter(r=>r.ok==='答对').length+' / '+TOTAL_STEPS]);
+  rows.push(['评级',rankText(score).replace(/^[^\s]+\s/,'')]);
+  rows.push(['完成时间',new Date().toLocaleString('zh-CN')]);
+  const csv=rows.map(row=>row.map(cell=>'"'+String(cell??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='眼力大挑战-成绩表-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
 
 // 题目不依赖具体模型，只要有一个模型就绪就能开始答题
@@ -693,6 +900,7 @@ const waitReady=setInterval(()=>{
   if(loaded+failed.length>=TOTAL){ clearInterval(waitReady); renderRound(); }
   else if(loaded>=1){ clearInterval(waitReady); renderRound(); }
 },250);
+
 </script>
 
 <script src="./assets/theme.js"></script>
